@@ -1,0 +1,3 @@
+[submodule "dyn-proto"]
+	path = dyn-proto
+	url = git@github.com:wtzhang23/dyn-proto.git
