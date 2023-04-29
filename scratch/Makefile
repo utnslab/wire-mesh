@@ -1,5 +1,5 @@
 EXEC_NAME = xPlane
-PROTO_DIR = dyn-proto
+PROTO_DIR = dynspec
 BUILD_DIR = build
 
 .PHONY: all
@@ -20,5 +20,4 @@ build: app
 
 .PHONY: clean
 clean:
-	rm -rf app
 	rm -rf ${BUILD_DIR}
