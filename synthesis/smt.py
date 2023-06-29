@@ -298,7 +298,7 @@ def main():
             for j in range(num_policies):
                 if model.evaluate(I[m][j]) and model.evaluate(X[m]):
                     placements.append((appl_nodes[m], j))
-        print(placements)
+        # print(placements)
 
         # Get the E[i][j][m] values for the solution
         executions = []
@@ -308,7 +308,8 @@ def main():
                     if model.evaluate(E[i][j][m]):
                         executions.append(
                             (all_req_contexts_list[i], j, appl_nodes[m]))
-        print(executions)
+        for execution in executions:
+            print(execution)
 
 
 if __name__ == "__main__":
