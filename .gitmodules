@@ -1,6 +1,11 @@
 [submodule "dynspec"]
 	path = dynspec
 	url = git@github.com:wtzhang23/dynspec.git
+	branch = main
 [submodule "m4language"]
 	path = m4language
 	url = git@github.com:wtzhang23/m4language.git
+	branch = main
+[submodule "vendor/github.com/mitchellh/go-z3"]
+	path = ext/go-z3
+	url = git@github.com:mholtom/go-z3.git
