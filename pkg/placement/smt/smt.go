@@ -3,7 +3,7 @@ package smt
 import (
 	"fmt"
 	"strings"
-	"xPlane/pkg/placement"
+	"xPlane"
 
 	z3 "xPlane/ext/go-z3"
 
@@ -11,28 +11,38 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func getPolicyImpls(policyContext []string, applEdges map[string][]string, allServices map[string]int) ([]int, []int) {
+// Get a map of all used services to an index in the services array.
+func getSvcMapFromList(services []string) map[string]int {
+	svcMap := make(map[string]int)
+	for i, service := range services {
+		svcMap[service] = i
+	}
+
+	return svcMap
+}
+
+func getPolicyImpls(policyContext []string, applEdges map[string][]string, svcMap map[string]int) ([]int, []int) {
 	var penultimateNodes []int
 	var lastNodes []int
 
 	if policyContext[len(policyContext)-1] == "*" {
 		// There should be a single penultimate node.
 		penultimateSvc := policyContext[len(policyContext)-2]
-		penultimateNodes = append(penultimateNodes, allServices[penultimateSvc])
+		penultimateNodes = append(penultimateNodes, svcMap[penultimateSvc])
 
 		// All edges from the penultimate node are last nodes.
 		for _, svc := range applEdges[penultimateSvc] {
-			lastNodes = append(lastNodes, allServices[svc])
+			lastNodes = append(lastNodes, svcMap[svc])
 		}
 	} else {
 		// The last node is the last element of the policy context.
 		lastSvc := policyContext[len(policyContext)-1]
-		lastNodes = append(lastNodes, allServices[lastSvc])
+		lastNodes = append(lastNodes, svcMap[lastSvc])
 
 		// The penultimate node set will be all the nodes before the last node.
 		for svc, edges := range applEdges {
 			if slices.Contains(edges, lastSvc) {
-				penultimateNodes = append(penultimateNodes, allServices[svc])
+				penultimateNodes = append(penultimateNodes, svcMap[svc])
 			}
 		}
 	}
@@ -157,10 +167,16 @@ func expandPolicyContext(policyContext []string, applEdges map[string][]string) 
 	}
 }
 
-func optimizeForTarget(policies []placement.Policy, applEdges map[string][]string, allServices map[string]int, target int) ([]string, [][]string) {
+// OptimizeForTarget takes a list of policies, the application graph, a list of all services and a target.
+// Returns a boolean indicating whether the optimization was successful, a list of services where the sidecar should be placed,
+// and a map of which sidecars implement which policies.
+func OptimizeForTarget(policies []xPlane.Policy, applEdges map[string][]string, services []string, target int) (bool, []string, [][]string) {
 	// contextToPolicyMap maps request contexts (as string) to a list.
 	// The list stores the indexes to the policies in the policies array.
 	contextToPolicyMap := make(map[string][]int)
+
+	// Service map is needed to map service names to their index in the z3 variables.
+	svcMap := getSvcMapFromList(services)
 
 	// Iterate through all policies, get all request contexts.
 	for i, p := range policies {
@@ -175,7 +191,7 @@ func optimizeForTarget(policies []placement.Policy, applEdges map[string][]strin
 
 	// Useful variables.
 	numPolicies := len(policies)
-	numServices := len(allServices)
+	numServices := len(svcMap)
 	numContexts := len(contextToPolicyMap)
 
 	// Get all keys from the map.
@@ -261,7 +277,7 @@ func optimizeForTarget(policies []placement.Policy, applEdges map[string][]strin
 		reqContext := strings.Split(allContexts[i], ",")
 		for j := 0; j < numPolicies; j++ {
 			// Iterate over all services map.
-			for svc, m := range allServices {
+			for svc, m := range svcMap {
 				if !slices.Contains(reqContext, svc) {
 					s.Assert(E[i][j][m].Not())
 				}
@@ -271,14 +287,14 @@ func optimizeForTarget(policies []placement.Policy, applEdges map[string][]strin
 
 	// Constraint 4 : Some policies can be implemented only at sender or receiver.
 	for j := 0; j < numPolicies; j++ {
-		penultimateNodes, lastNodes := getPolicyImpls(policies[j].GetContext(), applEdges, allServices)
+		penultimateNodes, lastNodes := getPolicyImpls(policies[j].GetContext(), applEdges, svcMap)
 		glog.Info("For policy context ", policies[j].GetContext(), " got penultimate nodes: ", penultimateNodes, " and last nodes: ", lastNodes)
 
 		// Either all penultimate nodes implement the policy or all last nodes implement the policy.
 		penultimateImplements := ctx.True()
 		lastImplements := ctx.True()
 
-		if policies[j].GetConstraint() != placement.RECEIVER {
+		if policies[j].GetConstraint() != xPlane.RECEIVER {
 			for _, m := range penultimateNodes {
 				penultimateImplements = penultimateImplements.And(I[m][j])
 			}
@@ -286,7 +302,7 @@ func optimizeForTarget(policies []placement.Policy, applEdges map[string][]strin
 			penultimateImplements = ctx.False()
 		}
 
-		if policies[j].GetConstraint() != placement.SENDER {
+		if policies[j].GetConstraint() != xPlane.SENDER {
 			for _, m := range lastNodes {
 				lastImplements = lastImplements.And(I[m][j])
 			}
@@ -298,12 +314,12 @@ func optimizeForTarget(policies []placement.Policy, applEdges map[string][]strin
 
 		// All other nodes do not implement the policy.
 		for m := 0; m < numServices; m++ {
-			if policies[j].GetConstraint() == placement.SENDER {
+			if policies[j].GetConstraint() == xPlane.SENDER {
 				// Sender policy => any node not in penultimate set should not implement the policy.
 				if !slices.Contains(penultimateNodes, m) {
 					s.Assert(I[m][j].Not())
 				}
-			} else if policies[j].GetConstraint() == placement.RECEIVER {
+			} else if policies[j].GetConstraint() == xPlane.RECEIVER {
 				// Receiver policy => any node not in lastNodes set should not implement the policy.
 				if !slices.Contains(lastNodes, m) {
 					s.Assert(I[m][j].Not())
@@ -342,7 +358,7 @@ func optimizeForTarget(policies []placement.Policy, applEdges map[string][]strin
 	// Check if the constraints are satisfiable.
 	if v := s.Check(); v != z3.True {
 		glog.Info("The given constraints are unsolveable")
-		return nil, nil
+		return false, nil, nil
 	}
 
 	// Get the model.
@@ -354,8 +370,8 @@ func optimizeForTarget(policies []placement.Policy, applEdges map[string][]strin
 	for m := 0; m < numServices; m++ {
 		xVal := model.Eval(X[m])
 		if xVal.String() == "true" {
-			// Find the service name from the allServices map.
-			for svc, i := range allServices {
+			// Find the service name from the svcMap map.
+			for svc, i := range svcMap {
 				if i == m {
 					sidecars = append(sidecars, svc)
 				}
@@ -371,8 +387,8 @@ func optimizeForTarget(policies []placement.Policy, applEdges map[string][]strin
 			iVal := model.Eval(I[m][j])
 			xVal := model.Eval(X[m])
 			if iVal.String() == "true" && xVal.String() == "true" {
-				// Find the service name from the allServices map.
-				for svc, i := range allServices {
+				// Find the service name from the svcMap map.
+				for svc, i := range svcMap {
 					if i == m {
 						glog.Info("Service ", svc, " implements policy ", j)
 						impls[j] = append(impls[j], svc)
@@ -382,5 +398,5 @@ func optimizeForTarget(policies []placement.Policy, applEdges map[string][]strin
 		}
 	}
 
-	return sidecars, impls
+	return true, sidecars, impls
 }

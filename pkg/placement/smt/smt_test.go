@@ -3,7 +3,7 @@ package smt
 import (
 	"flag"
 	"testing"
-	"xPlane/pkg/placement"
+	"xPlane"
 
 	"github.com/golang/glog"
 )
@@ -12,10 +12,6 @@ func TestBasic(t *testing.T) {
 	flag.Parse()
 
 	services := []string{"A", "B", "C", "D", "E", "F", "G"}
-	allServices := make(map[string]int)
-	for i, service := range services {
-		allServices[service] = i
-	}
 
 	// Define application graph.
 	applEdges := make(map[string][]string)
@@ -26,19 +22,24 @@ func TestBasic(t *testing.T) {
 	applEdges["E"] = []string{"F", "G"}
 
 	// Define functions and constraints.
-	setHeaderFunc := placement.CreatePolicyFunction("setHeader", placement.SENDER_RECEIVER)
-	countFunc := placement.CreatePolicyFunction("count", placement.SENDER_RECEIVER)
-	setDeadlineFunc := placement.CreatePolicyFunction("setDeadline", placement.SENDER)
+	setHeaderFunc := xPlane.CreatePolicyFunction("setHeader", xPlane.SENDER_RECEIVER, false)
+	countFunc := xPlane.CreatePolicyFunction("count", xPlane.SENDER_RECEIVER, false)
+	setDeadlineFunc := xPlane.CreatePolicyFunction("setDeadline", xPlane.SENDER, false)
 
 	// Define policies.
-	policies := []placement.Policy{
-		placement.CreatePolicy([]string{"A", "*"}, []placement.PolicyFunction{setHeaderFunc}),
-		placement.CreatePolicy([]string{"*", "F"}, []placement.PolicyFunction{countFunc}),
-		placement.CreatePolicy([]string{"A", "*", "E", "*"}, []placement.PolicyFunction{setDeadlineFunc}),
+	policies := []xPlane.Policy{
+		xPlane.CreatePolicy([]string{"A", "*"}, []xPlane.PolicyFunction{setHeaderFunc}),
+		xPlane.CreatePolicy([]string{"*", "F"}, []xPlane.PolicyFunction{countFunc}),
+		xPlane.CreatePolicy([]string{"A", "*", "E", "*"}, []xPlane.PolicyFunction{setDeadlineFunc}),
 	}
 
 	// Call the SMT function.
-	sidecars, placements := optimizeForTarget(policies, applEdges, allServices, 3)
+	sat, sidecars, placements := OptimizeForTarget(policies, applEdges, services, 3)
+	if !sat {
+		glog.Infof("No solution found.")
+		return
+	}
+
 	glog.Infof("Services with sidecars: %v", sidecars)
 	glog.Infof("Placements: %v", placements)
 }
