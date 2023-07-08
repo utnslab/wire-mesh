@@ -139,15 +139,20 @@ func (po *PolicyOptimizer) ParsePolicy(b []byte) xp.Policy {
 
 	// Iterate over the objects in the matches array and get the one which has the context.
 	var contextObject []byte
+	found := false
 	jsonparser.ArrayEach(matchesArray, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
 		// Get the context from the object.
 		object, _, _, e := jsonparser.Get(value, "Context")
-		if e != nil {
-			glog.Errorf("No context in object: %s", value)
+		if e == nil {
+			// TODO: Assumption is that there is only one context object.
+			contextObject = object
+			found = true
 		}
-
-		contextObject = object
 	})
+
+	if !found {
+		glog.Errorf("No context found in policy: %s", matchesArray)
+	}
 
 	// Get the list of endpoints from the context object.
 	endpointsArray, _, _, err := jsonparser.Get(contextObject, "blocks")

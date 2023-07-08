@@ -9,8 +9,7 @@ func TestPlacement(t *testing.T) {
 	flag.Parse()
 
 	// Testing purposes.
-	po := PolicyOptimizer{
-		jsonDir: "../../m4language/target/debug/build",
-	}
-	po.GetPlacement([]string{"ast.json"})
+	po := CreatePolicyOptimizer("../../examples", map[string][]string{"A": []string{"B", "C"}})
+
+	po.GetPlacement([]string{"dummy_policy.json"})
 }

@@ -1,0 +1,569 @@
+{
+  "package": {
+    "path": [
+      "hello_world"
+    ]
+  },
+  "imports": [
+    {
+      "path": "interface.m4",
+      "span": [
+        22,
+        44
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "inner": {
+        "Policy": {
+          "name": {
+            "name": "count_requests",
+            "span": [
+              53,
+              67
+            ]
+          },
+          "target": {
+            "declaration": {
+              "name": {
+                "name": "response",
+                "span": [
+                  99,
+                  107
+                ]
+              },
+              "inferred_type": {
+                "Path": [
+                  [
+                    "common",
+                    "HttpResponse"
+                  ],
+                  null
+                ]
+              },
+              "type_inner": {
+                "span": [
+                  78,
+                  98
+                ]
+              },
+              "span": [
+                78,
+                107
+              ]
+            }
+          },
+          "states": [
+            {
+              "declaration": {
+                "name": {
+                  "name": "success",
+                  "span": [
+                    133,
+                    140
+                  ]
+                },
+                "inferred_type": {
+                  "Path": [
+                    [
+                      "common",
+                      "Counter"
+                    ],
+                    null
+                  ]
+                },
+                "type_inner": {
+                  "span": [
+                    117,
+                    132
+                  ]
+                },
+                "span": [
+                  117,
+                  140
+                ]
+              }
+            },
+            {
+              "declaration": {
+                "name": {
+                  "name": "error",
+                  "span": [
+                    158,
+                    163
+                  ]
+                },
+                "inferred_type": {
+                  "Path": [
+                    [
+                      "common",
+                      "Counter"
+                    ],
+                    null
+                  ]
+                },
+                "type_inner": {
+                  "span": [
+                    142,
+                    157
+                  ]
+                },
+                "span": [
+                  142,
+                  163
+                ]
+              }
+            }
+          ],
+          "matches": [
+            {
+              "Context": {
+                "blocks": [
+                  {
+                    "inner": {
+                      "Endpoints": [
+                        {
+                          "name": "A"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "inner": {
+                      "Endpoints": [
+                        {
+                          "name": "B"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "span": [
+                  175,
+                  194
+                ]
+              }
+            }
+          ],
+          "code_block": {
+            "statements": [
+              {
+                "inner": {
+                  "DeclarationAssignment": [
+                    {
+                      "name": {
+                        "name": "status",
+                        "span": [
+                          205,
+                          211
+                        ]
+                      },
+                      "inferred_type": {
+                        "Numeric": [
+                          "U16",
+                          null
+                        ]
+                      },
+                      "type_inner": {
+                        "span": [
+                          201,
+                          204
+                        ]
+                      },
+                      "span": [
+                        201,
+                        211
+                      ]
+                    },
+                    {
+                      "inner": {
+                        "FunctionCall": [
+                          {
+                            "inner": {
+                              "MemberAccess": [
+                                {
+                                  "inner": {
+                                    "Identifier": "response"
+                                  },
+                                  "inferred_type": {
+                                    "Path": [
+                                      [
+                                        "common",
+                                        "HttpResponse"
+                                      ],
+                                      null
+                                    ]
+                                  },
+                                  "span": [
+                                    214,
+                                    222
+                                  ]
+                                },
+                                {
+                                  "inner": "get_status",
+                                  "span": [
+                                    223,
+                                    233
+                                  ]
+                                }
+                              ]
+                            },
+                            "inferred_type": {
+                              "Function": [
+                                {
+                                  "self_": {
+                                    "placement": null,
+                                    "mutability": "Const"
+                                  },
+                                  "args": [],
+                                  "ret": {
+                                    "Numeric": [
+                                      "U16",
+                                      null
+                                    ]
+                                  }
+                                },
+                                null
+                              ]
+                            },
+                            "span": [
+                              214,
+                              233
+                            ]
+                          },
+                          []
+                        ]
+                      },
+                      "inferred_type": {
+                        "Numeric": [
+                          "U16",
+                          null
+                        ]
+                      },
+                      "span": [
+                        214,
+                        235
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "inner": {
+                  "Declaration": {
+                    "name": {
+                      "name": "counter",
+                      "span": [
+                        245,
+                        252
+                      ]
+                    },
+                    "inferred_type": null,
+                    "type_inner": {
+                      "span": [
+                        241,
+                        244
+                      ]
+                    },
+                    "span": [
+                      241,
+                      252
+                    ]
+                  }
+                }
+              },
+              {
+                "inner": {
+                  "Block": {
+                    "inner": {
+                      "IfElse": [
+                        [
+                          {
+                            "condition": {
+                              "inner": {
+                                "Binary": [
+                                  {
+                                    "inner": {
+                                      "BinaryComparison": [
+                                        {
+                                          "inner": {
+                                            "Identifier": "status"
+                                          },
+                                          "inferred_type": {
+                                            "Numeric": [
+                                              "U8",
+                                              null
+                                            ]
+                                          },
+                                          "span": [
+                                            261,
+                                            267
+                                          ]
+                                        },
+                                        {
+                                          "inner": {
+                                            "Literal": {
+                                              "Integer": 200
+                                            }
+                                          },
+                                          "inferred_type": {
+                                            "Numeric": [
+                                              "U8",
+                                              null
+                                            ]
+                                          },
+                                          "span": [
+                                            271,
+                                            274
+                                          ]
+                                        },
+                                        "GreaterThanOrEqual"
+                                      ]
+                                    },
+                                    "inferred_type": {
+                                      "Bool": null
+                                    },
+                                    "span": [
+                                      261,
+                                      274
+                                    ]
+                                  },
+                                  {
+                                    "inner": {
+                                      "BinaryComparison": [
+                                        {
+                                          "inner": {
+                                            "Identifier": "status"
+                                          },
+                                          "inferred_type": {
+                                            "Numeric": [
+                                              "U15",
+                                              null
+                                            ]
+                                          },
+                                          "span": [
+                                            278,
+                                            284
+                                          ]
+                                        },
+                                        {
+                                          "inner": {
+                                            "Literal": {
+                                              "Integer": 300
+                                            }
+                                          },
+                                          "inferred_type": {
+                                            "Numeric": [
+                                              "U15",
+                                              null
+                                            ]
+                                          },
+                                          "span": [
+                                            287,
+                                            290
+                                          ]
+                                        },
+                                        "LessThan"
+                                      ]
+                                    },
+                                    "inferred_type": {
+                                      "Bool": null
+                                    },
+                                    "span": [
+                                      278,
+                                      290
+                                    ]
+                                  },
+                                  "And"
+                                ]
+                              },
+                              "inferred_type": {
+                                "Bool": null
+                              },
+                              "span": [
+                                261,
+                                290
+                              ]
+                            },
+                            "code_block": {
+                              "statements": [
+                                {
+                                  "inner": {
+                                    "Expression": {
+                                      "inner": {
+                                        "FunctionCall": [
+                                          {
+                                            "inner": {
+                                              "MemberAccess": [
+                                                {
+                                                  "inner": {
+                                                    "Identifier": "success"
+                                                  },
+                                                  "inferred_type": {
+                                                    "Path": [
+                                                      [
+                                                        "common",
+                                                        "Counter"
+                                                      ],
+                                                      null
+                                                    ]
+                                                  },
+                                                  "span": [
+                                                    301,
+                                                    308
+                                                  ]
+                                                },
+                                                {
+                                                  "inner": "increment",
+                                                  "span": [
+                                                    309,
+                                                    318
+                                                  ]
+                                                }
+                                              ]
+                                            },
+                                            "inferred_type": {
+                                              "Function": [
+                                                {
+                                                  "self_": null,
+                                                  "args": [],
+                                                  "ret": {
+                                                    "Empty": null
+                                                  }
+                                                },
+                                                null
+                                              ]
+                                            },
+                                            "span": [
+                                              301,
+                                              318
+                                            ]
+                                          },
+                                          []
+                                        ]
+                                      },
+                                      "inferred_type": {
+                                        "Empty": null
+                                      },
+                                      "span": [
+                                        301,
+                                        320
+                                      ]
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ],
+                        {
+                          "statements": [
+                            {
+                              "inner": {
+                                "Expression": {
+                                  "inner": {
+                                    "FunctionCall": [
+                                      {
+                                        "inner": {
+                                          "MemberAccess": [
+                                            {
+                                              "inner": {
+                                                "Identifier": "error"
+                                              },
+                                              "inferred_type": {
+                                                "Path": [
+                                                  [
+                                                    "common",
+                                                    "Counter"
+                                                  ],
+                                                  null
+                                                ]
+                                              },
+                                              "span": [
+                                                343,
+                                                348
+                                              ]
+                                            },
+                                            {
+                                              "inner": "increment",
+                                              "span": [
+                                                349,
+                                                358
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        "inferred_type": {
+                                          "Function": [
+                                            {
+                                              "self_": null,
+                                              "args": [],
+                                              "ret": {
+                                                "Empty": null
+                                              }
+                                            },
+                                            null
+                                          ]
+                                        },
+                                        "span": [
+                                          343,
+                                          358
+                                        ]
+                                      },
+                                      []
+                                    ]
+                                  },
+                                  "inferred_type": {
+                                    "Empty": null
+                                  },
+                                  "span": [
+                                    343,
+                                    360
+                                  ]
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "nonlocal_dependencies": []
+                  }
+                }
+              }
+            ]
+          },
+          "used_abstract_fields": [
+            [
+              [
+                "common",
+                "Counter"
+              ],
+              {
+                "set": [
+                  "increment"
+                ]
+              }
+            ],
+            [
+              [
+                "common",
+                "HttpResponse"
+              ],
+              {
+                "set": [
+                  "get_status"
+                ]
+              }
+            ]
+          ],
+          "span": [
+            46,
+            369
+          ]
+        }
+      }
+    }
+  ]
+}
