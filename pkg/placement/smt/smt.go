@@ -145,8 +145,8 @@ func backwardPolicyContext(targetNode string, applEdges map[string][]string) [][
 	return contextList
 }
 
-// expandPolicyContext expands the policy context to get all possible request contexts.
-func expandPolicyContext(policyContext []string, applEdges map[string][]string) [][]string {
+// ExpandPolicyContext expands the policy context to get all possible request contexts.
+func ExpandPolicyContext(policyContext []string, applEdges map[string][]string) [][]string {
 	if policyContext[0] != "*" {
 		return forwardPolicyContext(policyContext, applEdges)
 	} else {
@@ -180,7 +180,7 @@ func OptimizeForTarget(policies []xPlane.Policy, applEdges map[string][]string, 
 
 	// Iterate through all policies, get all request contexts.
 	for i, p := range policies {
-		reqContexts := expandPolicyContext(p.GetContext(), applEdges)
+		reqContexts := ExpandPolicyContext(p.GetContext(), applEdges)
 		glog.Info("Expanded contexts for ", p.GetContext(), " : ", reqContexts)
 
 		for _, rc := range reqContexts {

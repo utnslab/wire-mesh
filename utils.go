@@ -59,6 +59,16 @@ func (p *Policy) GetFunctions() []PolicyFunction {
 	return p.functions
 }
 
+func (p *Policy) ExistsMutableFunction() bool {
+	// Iterate over the functions and check if any of them mutate the CNO.
+	for _, pf := range p.functions {
+		if pf.GetMutability() {
+			return true
+		}
+	}
+	return false
+}
+
 // Create a new Policy struct.
 func CreatePolicy(context []string, functions []PolicyFunction) Policy {
 	return Policy{
