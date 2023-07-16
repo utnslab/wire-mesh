@@ -52,7 +52,9 @@ func getPolicyImpls(policyContext []string, applEdges map[string][]string, svcMa
 
 // forwardPolicyContext takes a policy context and a start node,
 // and gets all paths that satisfy the policy context.
-func forwardPolicyContext(policyContext []string, applEdges map[string][]string) [][]string {
+// If fullExpand is true, then all paths are expanded to the leaf nodes (useful for conflict detection).
+// Otherwise, only the paths to the last node are returned.
+func forwardPolicyContext(policyContext []string, applEdges map[string][]string, fullExpand bool) [][]string {
 	currContextList := [][]string{{policyContext[0]}}
 	prevNode := policyContext[0]
 
@@ -98,15 +100,46 @@ func forwardPolicyContext(policyContext []string, applEdges map[string][]string)
 
 				currContextList = newContextList
 			} else {
-				// Without target node, simply add all the children of the previous node.
-				newContextList := [][]string{}
-				for _, context := range currContextList {
+				if fullExpand {
+					bftQueue := [][]string{}
 					for _, n := range applEdges[prevNode] {
-						contextCopy := append([]string{}, context...)
-						newContextList = append(newContextList, append(contextCopy, n))
+						bftQueue = append(bftQueue, []string{n})
 					}
+
+					// Keep track of paths from previous node to target node.
+					newContextList := [][]string{}
+					for len(bftQueue) > 0 {
+						currPath := bftQueue[0]
+						currNode := currPath[len(currPath)-1]
+
+						// Unroll BFS until a leaf is met.
+						if children, ok := applEdges[currNode]; ok {
+							for _, n := range children {
+								currPathCopy := append([]string{}, currPath...)
+								bftQueue = append(bftQueue, append(currPathCopy, n))
+							}
+						} else {
+							// Leaf node found, add to context list.
+							for _, context := range currContextList {
+								contextCopy := append([]string{}, context...)
+								newContextList = append(newContextList, append(contextCopy, currPath...))
+							}
+						}
+						bftQueue = bftQueue[1:]
+					}
+
+					currContextList = newContextList
+				} else {
+					// Add all children of prevNode to every context in currContextList.
+					newContextList := [][]string{}
+					for _, context := range currContextList {
+						for _, n := range applEdges[prevNode] {
+							contextCopy := append([]string{}, context...)
+							newContextList = append(newContextList, append(contextCopy, n))
+						}
+					}
+					currContextList = newContextList
 				}
-				currContextList = newContextList
 			}
 		}
 	}
@@ -123,7 +156,6 @@ func backwardPolicyContext(targetNode string, applEdges map[string][]string) [][
 			parents[c] = append(parents[c], n)
 		}
 	}
-	glog.Info("Parents: ", parents)
 
 	backwardBFTQueue := [][]string{{targetNode}}
 	contextList := [][]string{}
@@ -146,12 +178,14 @@ func backwardPolicyContext(targetNode string, applEdges map[string][]string) [][
 }
 
 // ExpandPolicyContext expands the policy context to get all possible request contexts.
-func ExpandPolicyContext(policyContext []string, applEdges map[string][]string) [][]string {
+func ExpandPolicyContext(policyContext []string, applEdges map[string][]string, fullExpand bool) [][]string {
 	if policyContext[0] != "*" {
-		return forwardPolicyContext(policyContext, applEdges)
+		contextList := forwardPolicyContext(policyContext, applEdges, fullExpand)
+		// glog.Info("Expanded policy context: ", policyContext, " to ", contextList)
+		return contextList
 	} else {
 		preContextList := backwardPolicyContext(policyContext[1], applEdges)
-		postContextList := forwardPolicyContext(policyContext[1:], applEdges)
+		postContextList := forwardPolicyContext(policyContext[1:], applEdges, fullExpand)
 		contextList := [][]string{}
 		for _, preContext := range preContextList {
 			if len(postContextList) > 0 {
@@ -163,6 +197,8 @@ func ExpandPolicyContext(policyContext []string, applEdges map[string][]string) 
 				contextList = append(contextList, preContext)
 			}
 		}
+
+		// glog.Info("Expanded policy context: ", policyContext, " to ", contextList)
 		return contextList
 	}
 }
@@ -180,8 +216,7 @@ func OptimizeForTarget(policies []xPlane.Policy, applEdges map[string][]string, 
 
 	// Iterate through all policies, get all request contexts.
 	for i, p := range policies {
-		reqContexts := ExpandPolicyContext(p.GetContext(), applEdges)
-		glog.Info("Expanded contexts for ", p.GetContext(), " : ", reqContexts)
+		reqContexts := ExpandPolicyContext(p.GetContext(), applEdges, false)
 
 		for _, rc := range reqContexts {
 			contextStr := strings.Join(rc, ",")
@@ -288,7 +323,7 @@ func OptimizeForTarget(policies []xPlane.Policy, applEdges map[string][]string, 
 	// Constraint 4 : Some policies can be implemented only at sender or receiver.
 	for j := 0; j < numPolicies; j++ {
 		penultimateNodes, lastNodes := getPolicyImpls(policies[j].GetContext(), applEdges, svcMap)
-		glog.Info("For policy context ", policies[j].GetContext(), " got penultimate nodes: ", penultimateNodes, " and last nodes: ", lastNodes)
+		// glog.Info("For policy context ", policies[j].GetContext(), " got penultimate nodes: ", penultimateNodes, " and last nodes: ", lastNodes)
 
 		// Either all penultimate nodes implement the policy or all last nodes implement the policy.
 		penultimateImplements := ctx.True()
@@ -356,12 +391,14 @@ func OptimizeForTarget(policies []xPlane.Policy, applEdges map[string][]string, 
 	s.Assert(numSidecars.Le(targetConst))
 
 	// Check if the constraints are satisfiable.
+	glog.Info("Checking if the constraints are satisfiable for target ", target)
 	if v := s.Check(); v != z3.True {
 		glog.Info("The given constraints are unsolveable")
 		return false, nil, nil
 	}
 
 	// Get the model.
+	glog.Info("Constraints are satisfiable. Getting the model.")
 	model := s.Model()
 	defer model.Close()
 

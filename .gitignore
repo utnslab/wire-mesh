@@ -1,1 +1,4 @@
 build/
+
+# Test input files
+*_test

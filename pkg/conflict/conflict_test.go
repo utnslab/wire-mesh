@@ -24,14 +24,14 @@ func TestConflicts(t *testing.T) {
 		xp.CreatePolicyFunction("set_header", xp.SENDER, true)}
 
 	policies := []xp.Policy{
-		xp.CreatePolicy([]string{"A", "B", "*"}, functions_p1),
+		xp.CreatePolicy([]string{"A", "*"}, functions_p1),
 		xp.CreatePolicy([]string{"A", "C"}, functions_p2)}
 
 	// Now define a new policy that conflicts with the first one.
 	functions_p3 := []xp.PolicyFunction{
 		xp.CreatePolicyFunction("set_header", xp.SENDER, true)}
 
-	newPolicy := xp.CreatePolicy([]string{"B", "C"}, functions_p3)
+	newPolicy := xp.CreatePolicy([]string{"*", "B", "C"}, functions_p3)
 
 	// Check if the new policy conflicts with the existing ones.
 	conflicts := FindConflictingPolicies(policies, newPolicy, applGraph)
