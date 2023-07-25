@@ -51,7 +51,12 @@ func TestPlacement(t *testing.T) {
 		xp.CreatePolicy([]string{"A", "B"}, functions_p1),
 		xp.CreatePolicy([]string{"A", "C"}, functions_p2)}
 
-	GetPlacement(policies, applGraph, services)
+	hasSidecar := make([]bool, len(services))
+	for i := range hasSidecar {
+		hasSidecar[i] = false
+	}
+
+	GetPlacement(policies, applGraph, services, hasSidecar)
 }
 
 // Write a TestInstance to the given file.
@@ -355,6 +360,11 @@ func TestComplete(t *testing.T) {
 		glog.Info(p)
 	}
 
+	hasSidecar := make([]bool, len(services))
+	for i := range hasSidecar {
+		hasSidecar[i] = false
+	}
+
 	// Call the SMT function.
-	GetPlacement(policies, applEdges, services)
+	GetPlacement(policies, applEdges, services, hasSidecar)
 }

@@ -33,8 +33,15 @@ func TestBasic(t *testing.T) {
 		xPlane.CreatePolicy([]string{"A", "*", "E", "*"}, []xPlane.PolicyFunction{setDeadlineFunc}),
 	}
 
+	// Make a list with numServices elements, all false.
+	// This is the initial placement.
+	hasSidecar := make([]bool, len(services))
+	for i := range hasSidecar {
+		hasSidecar[i] = false
+	}
+
 	// Call the SMT function.
-	sat, sidecars, placements := OptimizeForTarget(policies, applEdges, services, 3)
+	sat, sidecars, placements := OptimizeForTarget(policies, applEdges, services, hasSidecar, 3)
 	if !sat {
 		glog.Infof("No solution found.")
 		return

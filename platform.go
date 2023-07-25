@@ -266,3 +266,24 @@ func (p *Platform) SubmitPolicy(policyJsons []string) error {
 
 	return nil
 }
+
+// Get a list of boolean values indicating whether a service has a sidecar or not.
+func (p *Platform) GetServicesWithSidecars() []bool {
+	hasSidecar := make([]bool, len(p.services))
+	for i := range hasSidecar {
+		hasSidecar[i] = false
+	}
+
+	// Iterate over the policies and set the hasSidecar value to true for the services in the policy.
+	for _, policy := range p.policies {
+		svc := policy.GetPlacement()
+		// Get the index of the service in the services array.
+		for i, service := range p.services {
+			if service == svc {
+				hasSidecar[i] = true
+			}
+		}
+	}
+
+	return hasSidecar
+}

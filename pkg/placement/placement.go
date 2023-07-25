@@ -8,7 +8,7 @@ import (
 )
 
 // Find the optimal placement for the given policies. Requires all dataplane functions to be registered.
-func GetPlacement(policies []xp.Policy, applGraph map[string][]string, services []string) error {
+func GetPlacement(policies []xp.Policy, applGraph map[string][]string, services []string, hasSidecars []bool) error {
 	// Get the optimal placement for the given policies.
 	var sidecars []string
 	var impls [][]string
@@ -18,7 +18,7 @@ func GetPlacement(policies []xp.Policy, applGraph map[string][]string, services 
 	high := len(services)
 	for low < high {
 		mid := (low + high) / 2
-		sat, s, i := smt.OptimizeForTarget(policies, applGraph, services, mid)
+		sat, s, i := smt.OptimizeForTarget(policies, applGraph, services, hasSidecars, mid)
 		if sat {
 			high = mid
 			sidecars = s

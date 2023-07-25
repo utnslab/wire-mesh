@@ -203,10 +203,11 @@ func ExpandPolicyContext(policyContext []string, applEdges map[string][]string, 
 	}
 }
 
-// OptimizeForTarget takes a list of policies, the application graph, a list of all services and a target.
-// Returns a boolean indicating whether the optimization was successful, a list of services where the sidecar should be placed,
-// and a map of which sidecars implement which policies.
-func OptimizeForTarget(policies []xPlane.Policy, applEdges map[string][]string, services []string, target int) (bool, []string, [][]string) {
+// OptimizeForTarget takes a list of policies, the application graph, a list of all services,
+// list declaring whether a service already has a sidecar and a target (number of changes).
+// Returns a boolean indicating whether the optimization was successful, a list of services
+// where the sidecar should be placed, and a map of which sidecars implement which policies.
+func OptimizeForTarget(policies []xPlane.Policy, applEdges map[string][]string, services []string, hasSidecar []bool, target int) (bool, []string, [][]string) {
 	// contextToPolicyMap maps request contexts (as string) to a list.
 	// The list stores the indexes to the policies in the policies array.
 	contextToPolicyMap := make(map[string][]int)
@@ -384,11 +385,17 @@ func OptimizeForTarget(policies []xPlane.Policy, applEdges map[string][]string, 
 
 	// Add the objective function.
 	targetConst := ctx.Int(target, ctx.IntSort())
-	numSidecars := ctx.Int(0, ctx.IntSort())
+	numChanges := ctx.Int(0, ctx.IntSort())
 	for m := 0; m < numServices; m++ {
-		numSidecars = numSidecars.Add(X[m].Ite(one, zero))
+		if hasSidecar[m] {
+			// If sidecar is already there then X[m] = 1 would correspond to no change.
+			numChanges = numChanges.Add(X[m].Ite(zero, one))
+		} else {
+			// If sidecar is not there then X[m] = 1 would correspond to a change.
+			numChanges = numChanges.Add(X[m].Ite(one, zero))
+		}
 	}
-	s.Assert(numSidecars.Le(targetConst))
+	s.Assert(numChanges.Le(targetConst))
 
 	// Check if the constraints are satisfiable.
 	glog.Info("Checking if the constraints are satisfiable for target ", target)
