@@ -6,3 +6,6 @@ build/
 # Test inputs
 *.gv
 *.png
+
+*.smt
+*_output

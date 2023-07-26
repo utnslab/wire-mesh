@@ -207,16 +207,16 @@ def main():
     # print(E)
 
     # Define the solver
-    s = z3.Solver()
+    o = z3.Optimize()
 
     # Add belonging constraints
     for i in range(num_req_contexts):
         req_context = all_req_contexts_list[i]
         for j in range(num_policies):
             if j in all_req_contexts[tuple(req_context)]:
-                s.add(B[i][j])
+                o.add(B[i][j])
             else:
-                s.add(z3.Not(B[i][j]))
+                o.add(z3.Not(B[i][j]))
 
     # Add the bi-implication constraints
     for i in range(num_req_contexts):
@@ -225,8 +225,8 @@ def main():
             beta = z3.BoolVal(False)
             for m in range(num_nodes):
                 beta = z3.Or(z3.And(z3.And(E[i][j][m], I[m][j]), X[m]), beta)
-            s.add(z3.Implies(alpha, beta))
-            s.add(z3.Implies(beta, alpha))
+            o.add(z3.Implies(alpha, beta))
+            o.add(z3.Implies(beta, alpha))
 
     # Add the request context constraints
     for i in range(num_req_contexts):
@@ -234,7 +234,7 @@ def main():
         for j in range(num_policies):
             for m in range(num_nodes):
                 if appl_nodes[m] not in req_context:
-                    s.add(z3.Not(E[i][j][m]))
+                    o.add(z3.Not(E[i][j][m]))
 
     # Add the policy constraints
     for j in range(num_policies):
@@ -249,7 +249,7 @@ def main():
         beta = z3.BoolVal(True)
         for m in ult_set:
             beta = z3.And(I[m][j], beta)
-        s.add(z3.Xor(alpha, beta))
+        o.add(z3.Xor(alpha, beta))
 
         valid = pen_set
         if policy["function"] not in policy_constraints:
@@ -259,7 +259,7 @@ def main():
         # Add the constraint for invalid implementations
         for m in range(num_nodes):
             if m not in valid:
-                s.add(z3.Not(I[m][j]))
+                o.add(z3.Not(I[m][j]))
 
     # Exactly one node executes a policy for a given context
     # CHECK: Is this constraint correct?
@@ -271,19 +271,20 @@ def main():
                 z3.If(E[i][j][m], z3.IntVal(1), z3.IntVal(0))
                 for m in range(num_nodes)
             ])
-            s.add(z3.If(B[i][j], alpha_ij == 1, alpha_ij == 0))
+            o.add(z3.If(B[i][j], alpha_ij == 1, alpha_ij == 0))
 
     # Define the objective
     num_sidecars = z3.Sum(
         [z3.If(X[m], z3.IntVal(1), z3.IntVal(0)) for m in range(num_nodes)])
-    s.add(num_sidecars <= objective)
+    # o.add(num_sidecars <= objective)
 
     # Check if the constraints are satisfiable
-    sat = s.check()
+    o.minimize(num_sidecars)
+    sat = o.check()
     print(sat)
 
     if sat == z3.sat:
-        model = s.model()
+        model = o.model()
 
         # Get the X[m] values for the solution
         sidecars = []

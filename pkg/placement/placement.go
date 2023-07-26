@@ -110,25 +110,13 @@ func GetPlacementParallel(policies []xp.Policy, applGraph map[string][]string, s
 }
 
 // Find the optimal placement for the given policies. Requires all dataplane functions to be registered.
+// Uses the z3 solver's SMT-LIB to find the optimal placement.
 func GetPlacement(policies []xp.Policy, applGraph map[string][]string, services []string, hasSidecars []bool) ([]string, [][]string) {
-	// Get the optimal placement for the given policies.
-	var sidecars []string
-	var impls [][]string
+	// Generate the SMT-LIB file.
+	smt.GenerateOptimizationFile(policies, applGraph, services, hasSidecars)
 
-	// Perform a binary search to find the optimal placement.
-	low := 0
-	high := len(services)
-	for low < high {
-		mid := (low + high) / 2
-		sat, s, i := smt.OptimizeForTarget(policies, applGraph, services, hasSidecars, mid)
-		if sat {
-			high = mid
-			sidecars = s
-			impls = i
-		} else {
-			low = mid + 1
-		}
-	}
+	// Run the SMT solver and get the optimal placement for the given policies.
+	_, sidecars, impls := smt.RunSolver(services, len(policies))
 
 	// Print the optimal placement.
 	glog.Infof("Optimal placement: %d %v", len(sidecars), sidecars)
