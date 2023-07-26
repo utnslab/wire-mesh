@@ -225,6 +225,8 @@ func OptimizeForTarget(policies []xPlane.Policy, applEdges map[string][]string, 
 		}
 	}
 
+	glog.Info("All policies expanded")
+
 	// Useful variables.
 	numPolicies := len(policies)
 	numServices := len(svcMap)
@@ -243,6 +245,8 @@ func OptimizeForTarget(policies []xPlane.Policy, applEdges map[string][]string, 
 	ctx := z3.NewContext(config)
 	config.Close()
 	defer ctx.Close()
+
+	glog.Info("Defining variables")
 
 	// Define the "Belong to the policy context" variables.
 	B := make([][]*z3.AST, numContexts)
@@ -279,6 +283,8 @@ func OptimizeForTarget(policies []xPlane.Policy, applEdges map[string][]string, 
 			}
 		}
 	}
+
+	glog.Info("Defining constraints")
 
 	// Define the solver
 	s := ctx.NewSolver()
@@ -400,12 +406,12 @@ func OptimizeForTarget(policies []xPlane.Policy, applEdges map[string][]string, 
 	// Check if the constraints are satisfiable.
 	glog.Info("Checking if the constraints are satisfiable for target ", target)
 	if v := s.Check(); v != z3.True {
-		glog.Info("The given constraints are unsolveable")
+		glog.Infof("The given constraints are unsolveable for target %d.", target)
 		return false, nil, nil
 	}
 
 	// Get the model.
-	glog.Info("Constraints are satisfiable. Getting the model.")
+	glog.Infof("Constraints are satisfiable for target %d. Getting the model.", target)
 	model := s.Model()
 	defer model.Close()
 
@@ -434,7 +440,7 @@ func OptimizeForTarget(policies []xPlane.Policy, applEdges map[string][]string, 
 				// Find the service name from the svcMap map.
 				for svc, i := range svcMap {
 					if i == m {
-						glog.Info("Service ", svc, " implements policy ", j)
+						// glog.Info("Service ", svc, " implements policy ", j)
 						impls[j] = append(impls[j], svc)
 					}
 				}

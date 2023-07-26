@@ -2,3 +2,7 @@ build/
 
 # Test input files
 *_test
+
+# Test inputs
+*.gv
+*.png
