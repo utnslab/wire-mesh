@@ -249,13 +249,13 @@ func OptimizeForTarget(policies []xPlane.Policy, applEdges map[string][]string, 
 	glog.Info("Defining variables")
 
 	// Define the "Belong to the policy context" variables.
-	B := make([][]*z3.AST, numContexts)
-	for i := 0; i < numContexts; i++ {
-		B[i] = make([]*z3.AST, numPolicies)
-		for j := 0; j < numPolicies; j++ {
-			B[i][j] = ctx.Const(ctx.Symbol(fmt.Sprintf("B_%d_%d", i, j)), ctx.BoolSort())
-		}
-	}
+	// B := make([][]*z3.AST, numContexts)
+	// for i := 0; i < numContexts; i++ {
+	// 	B[i] = make([]*z3.AST, numPolicies)
+	// 	for j := 0; j < numPolicies; j++ {
+	// 		B[i][j] = ctx.Const(ctx.Symbol(fmt.Sprintf("B_%d_%d", i, j)), ctx.BoolSort())
+	// 	}
+	// }
 
 	// Define the "Implements" variables.
 	I := make([][]*z3.AST, numServices)
@@ -292,25 +292,30 @@ func OptimizeForTarget(policies []xPlane.Policy, applEdges map[string][]string, 
 
 	// Add the constraints.
 	// Constraint 1 (Belonging) : A policy must only run on a request context that is a subset of the policy context.
-	for i := 0; i < numContexts; i++ {
-		validPolicies := contextToPolicyMap[allContexts[i]]
-		for j := 0; j < numPolicies; j++ {
-			if slices.Contains(validPolicies, j) {
-				s.Assert(B[i][j])
-			} else {
-				s.Assert(B[i][j].Not())
-			}
-		}
-	}
+	// for i := 0; i < numContexts; i++ {
+	// 	validPolicies := contextToPolicyMap[allContexts[i]]
+	// 	for j := 0; j < numPolicies; j++ {
+	// 		if slices.Contains(validPolicies, j) {
+	// 			s.Assert(B[i][j])
+	// 		} else {
+	// 			s.Assert(B[i][j].Not())
+	// 		}
+	// 	}
+	// }
 
 	// Constraint 2 : Some node can implement a policy for a particular request context iff the request context belongs to the policy context.
 	for i := 0; i < numContexts; i++ {
+		validPolicies := contextToPolicyMap[allContexts[i]]
 		for j := 0; j < numPolicies; j++ {
 			someNodeImplements := ctx.False()
 			for m := 0; m < numServices; m++ {
 				someNodeImplements = someNodeImplements.Or(E[i][j][m].And(I[m][j]).And(X[m]))
 			}
-			s.Assert(someNodeImplements.Iff(B[i][j]))
+			if slices.Contains(validPolicies, j) {
+				s.Assert(someNodeImplements)
+			} else {
+				s.Assert(someNodeImplements.Not())
+			}
 		}
 	}
 
@@ -379,13 +384,19 @@ func OptimizeForTarget(policies []xPlane.Policy, applEdges map[string][]string, 
 	zero := ctx.Int(0, ctx.IntSort())
 	one := ctx.Int(1, ctx.IntSort())
 	for i := 0; i < numContexts; i++ {
+		validPolicies := contextToPolicyMap[allContexts[i]]
 		for j := 0; j < numPolicies; j++ {
 			// Calculate the total number of nodes that implement the policy for the request context.
 			totalImplements := ctx.Int(0, ctx.IntSort())
 			for m := 0; m < numServices; m++ {
 				totalImplements = totalImplements.Add(E[i][j][m].Ite(one, zero))
 			}
-			s.Assert(B[i][j].Ite(totalImplements.Eq(one), totalImplements.Eq(zero)))
+
+			if slices.Contains(validPolicies, j) {
+				s.Assert(totalImplements.Eq(one))
+			} else {
+				s.Assert(totalImplements.Eq(zero))
+			}
 		}
 	}
 
