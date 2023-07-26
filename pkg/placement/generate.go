@@ -188,7 +188,7 @@ func GenerateDAG(density float64, graphSize GraphSize) (map[string][]string, []s
 	if graphSize == MEDIUM {
 		tiers = tiers + rand.Intn(3)
 	} else if graphSize == LARGE {
-		tiers = 2*tiers + rand.Intn(6)
+		tiers = tiers + rand.Intn(6)
 	}
 	for i := 0; i < tiers; i++ {
 		// Generate 5-10 services in each tier.
@@ -196,7 +196,7 @@ func GenerateDAG(density float64, graphSize GraphSize) (map[string][]string, []s
 		if graphSize == MEDIUM {
 			new_services = new_services + rand.Intn(5)
 		} else if graphSize == LARGE {
-			new_services = 2*new_services + rand.Intn(10)
+			new_services = 2*new_services + rand.Intn(5)
 		}
 
 		// For each new service, choose a random number of existing services to connect to.
@@ -230,6 +230,72 @@ func GenerateDAG(density float64, graphSize GraphSize) (map[string][]string, []s
 	glog.Info("Using a DAG with ", len(services), " services and ", numEdges, " edges")
 
 	return applEdges, services
+}
+
+func GeneratePolicies(applEdges map[string][]string, numPolicies int) []xp.Policy {
+	// Get a list of all keys in applEdges.
+	nonLeafServices := make([]string, 0)
+	for k := range applEdges {
+		nonLeafServices = append(nonLeafServices, k)
+	}
+
+	// Define functions and constraints.
+	maxPathLength := 5
+	setHeaderFunc := xp.CreatePolicyFunction("setHeader", xp.SENDER_RECEIVER, false)
+	countFunc := xp.CreatePolicyFunction("count", xp.SENDER_RECEIVER, false)
+	setDeadlineFunc := xp.CreatePolicyFunction("setDeadline", xp.SENDER, true)
+	loadBalanceFunc := xp.CreatePolicyFunction("loadBalance", xp.SENDER, true)
+
+	functions := []xp.PolicyFunction{setHeaderFunc, countFunc, setDeadlineFunc, loadBalanceFunc}
+
+	policies := make([]xp.Policy, 0)
+	for i := 0; i < numPolicies; i++ {
+		// Generate a random policy context.
+		context := make([]string, 0)
+
+		// Start with a random service from nonLeafServices.
+		svc := nonLeafServices[rand.Intn(len(nonLeafServices))]
+		context = append(context, svc)
+
+		length := 1
+		for {
+			// Choose a random edge from svc. If not, end the policy.
+			// Our choice of start node ensures that there is at least one edge.
+			edges := applEdges[svc]
+			if len(edges) > 0 {
+				context = append(context, edges[rand.Intn(len(edges))])
+				svc = context[len(context)-1]
+			} else {
+				break
+			}
+
+			length += 1
+			if length >= maxPathLength {
+				break
+			}
+		}
+
+		// For each service in the context, replace with * based on a probability.
+		for j := 0; j < len(context); j++ {
+			if rand.Float64() < 0.5 {
+				if j != 0 && context[j-1] != "*" {
+					context[j] = "*"
+				}
+			}
+		}
+
+		// Choose a random subset of functions.
+		numFunctions := 1 + rand.Intn(len(functions))
+		policyFunctions := make([]xp.PolicyFunction, 0)
+		for j := 0; j < numFunctions; j++ {
+			policyFunctions = append(policyFunctions, functions[j])
+		}
+
+		// Create the policy.
+		policies = append(policies, xp.CreatePolicy(context, policyFunctions))
+	}
+
+	return policies
 }
 
 // Render the application graph in dot format.

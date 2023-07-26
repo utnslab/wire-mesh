@@ -54,7 +54,7 @@ func runParallelSearches(pi platformInfo, targets []int) (int, smtOutput) {
 
 // Find the optimal placement for the given policies by running search in parallel.
 // Requires all dataplane functions to be registered.
-func GetPlacementParallel(policies []xp.Policy, applGraph map[string][]string, services []string, hasSidecars []bool, maxThreads int) error {
+func GetPlacementParallel(policies []xp.Policy, applGraph map[string][]string, services []string, hasSidecars []bool, maxThreads int) ([]string, [][]string) {
 	pi := platformInfo{policies, applGraph, services, hasSidecars}
 
 	// Get the optimal placement for the given policies.
@@ -106,11 +106,11 @@ func GetPlacementParallel(policies []xp.Policy, applGraph map[string][]string, s
 	glog.Infof("Optimal placement: %d %v", len(sidecars), sidecars)
 	glog.Infof("Optimal implementations: %v", impls)
 
-	return nil
+	return sidecars, impls
 }
 
 // Find the optimal placement for the given policies. Requires all dataplane functions to be registered.
-func GetPlacement(policies []xp.Policy, applGraph map[string][]string, services []string, hasSidecars []bool) error {
+func GetPlacement(policies []xp.Policy, applGraph map[string][]string, services []string, hasSidecars []bool) ([]string, [][]string) {
 	// Get the optimal placement for the given policies.
 	var sidecars []string
 	var impls [][]string
@@ -134,5 +134,38 @@ func GetPlacement(policies []xp.Policy, applGraph map[string][]string, services 
 	glog.Infof("Optimal placement: %d %v", len(sidecars), sidecars)
 	glog.Infof("Optimal implementations: %v", impls)
 
-	return nil
+	return sidecars, impls
+}
+
+func GetPlacementBatches(policies []xp.Policy, applGraph map[string][]string, services []string, hasSidecars []bool, maxThreads int, batchSize int) ([]string, [][]string) {
+	// Divide the policies into batches.
+	var batches [][]xp.Policy
+	for i := 0; i < len(policies); i += batchSize {
+		end := i + batchSize
+		if end > len(policies) {
+			end = len(policies)
+		}
+		batches = append(batches, policies[i:end])
+	}
+
+	// Get the optimal placement for the given policies.
+	var sidecars []string
+	var impls [][]string
+
+	for _, batch := range batches {
+		sidecars, impls = GetPlacementParallel(batch, applGraph, services, hasSidecars, maxThreads)
+
+		// Update hasSidecar.
+		hasSidecars = make([]bool, len(services))
+		for _, s := range sidecars {
+			// Find the index of s in services.
+			for i, svc := range services {
+				if s == svc {
+					hasSidecars[i] = true
+				}
+			}
+		}
+	}
+
+	return sidecars, impls
 }
