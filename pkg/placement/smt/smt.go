@@ -511,16 +511,16 @@ func GenerateOptimizationFile(policies []xPlane.Policy, applEdges map[string][]s
 	// Define z3 variables.
 	glog.Info("Defining variables")
 
-	// Define the "Implements" variables.
-	I := make([][]string, numServices)
-	for m := 0; m < numServices; m++ {
-		I[m] = make([]string, numPolicies)
-		for j := 0; j < numPolicies; j++ {
-			I[m][j] = fmt.Sprintf("I_%d_%d", m, j)
-			f.Write([]byte(fmt.Sprintf("(declare-const I_%d_%d Int)\n", m, j)))
-			f.Write([]byte(fmt.Sprintf("(assert (or (= I_%d_%d 0) (= I_%d_%d 1)))\n", m, j, m, j)))
-		}
-	}
+	// // Define the "Implements" variables.
+	// I := make([][]string, numServices)
+	// for m := 0; m < numServices; m++ {
+	// 	I[m] = make([]string, numPolicies)
+	// 	for j := 0; j < numPolicies; j++ {
+	// 		I[m][j] = fmt.Sprintf("I_%d_%d", m, j)
+	// 		f.Write([]byte(fmt.Sprintf("(declare-const I_%d_%d Int)\n", m, j)))
+	// 		f.Write([]byte(fmt.Sprintf("(assert (or (= I_%d_%d 0) (= I_%d_%d 1)))\n", m, j, m, j)))
+	// 	}
+	// }
 
 	// Define the "Exists" variables.
 	X := make([]string, numServices)
@@ -553,7 +553,7 @@ func GenerateOptimizationFile(policies []xPlane.Policy, applEdges map[string][]s
 		for j := 0; j < numPolicies; j++ {
 			constraint_list := make([]string, 0)
 			for m := 0; m < numServices; m++ {
-				constraint_list = append(constraint_list, fmt.Sprintf("(= 3 (+ %s %s %s))", E[i][j][m], I[m][j], X[m]))
+				constraint_list = append(constraint_list, fmt.Sprintf("(= 2 (+ %s %s))", E[i][j][m], X[m]))
 			}
 
 			someNodeImplements := fmt.Sprintf("(or %s)", strings.Join(constraint_list, " "))
@@ -585,52 +585,61 @@ func GenerateOptimizationFile(policies []xPlane.Policy, applEdges map[string][]s
 		penultimateNodes, lastNodes := getPolicyImpls(policies[j].GetContext(), applEdges, svcMap)
 		// glog.Info("For policy context ", policies[j].GetContext(), " got penultimate nodes: ", penultimateNodes, " and last nodes: ", lastNodes)
 
-		// Either all penultimate nodes implement the policy or all last nodes implement the policy.
-		penultimateImplements := ""
-		lastImplements := ""
+		// // Either all penultimate nodes implement the policy or all last nodes implement the policy.
+		// penultimateImplements := ""
+		// lastImplements := ""
 
-		penultimateList := make([]string, 0)
-		lastList := make([]string, 0)
+		// penultimateList := make([]string, 0)
+		// lastList := make([]string, 0)
 
-		if policies[j].GetConstraint() != xPlane.RECEIVER {
-			for _, m := range penultimateNodes {
-				penultimateList = append(penultimateList, fmt.Sprintf("(= 1 %s)", I[m][j]))
-			}
-			penultimateImplements = fmt.Sprintf("(and %s)", strings.Join(penultimateList, " "))
-		}
+		// if policies[j].GetConstraint() != xPlane.RECEIVER {
+		// 	for _, m := range penultimateNodes {
+		// 		penultimateList = append(penultimateList, fmt.Sprintf("(= 1 %s)", I[m][j]))
+		// 	}
+		// 	penultimateImplements = fmt.Sprintf("(and %s)", strings.Join(penultimateList, " "))
+		// }
 
-		if policies[j].GetConstraint() != xPlane.SENDER {
-			for _, m := range lastNodes {
-				lastList = append(lastList, fmt.Sprintf("(= 1 %s)", I[m][j]))
-			}
-			lastImplements = fmt.Sprintf("(and %s)", strings.Join(lastList, " "))
-		}
+		// if policies[j].GetConstraint() != xPlane.SENDER {
+		// 	for _, m := range lastNodes {
+		// 		lastList = append(lastList, fmt.Sprintf("(= 1 %s)", I[m][j]))
+		// 	}
+		// 	lastImplements = fmt.Sprintf("(and %s)", strings.Join(lastList, " "))
+		// }
 
-		// Write the constraint to the file.
-		if penultimateImplements == "" {
-			f.Write([]byte(fmt.Sprintf("(assert %s)\n", lastImplements)))
-		} else if lastImplements == "" {
-			f.Write([]byte(fmt.Sprintf("(assert %s)\n", penultimateImplements)))
-		} else {
-			f.Write([]byte(fmt.Sprintf("(assert (xor %s %s))\n", penultimateImplements, lastImplements)))
-		}
+		// // Write the constraint to the file.
+		// if penultimateImplements == "" {
+		// 	f.Write([]byte(fmt.Sprintf("(assert %s)\n", lastImplements)))
+		// } else if lastImplements == "" {
+		// 	f.Write([]byte(fmt.Sprintf("(assert %s)\n", penultimateImplements)))
+		// } else {
+		// 	f.Write([]byte(fmt.Sprintf("(assert (xor %s %s))\n", penultimateImplements, lastImplements)))
+		// }
 
 		// All other nodes do not implement the policy.
 		for m := 0; m < numServices; m++ {
 			if policies[j].GetConstraint() == xPlane.SENDER {
 				// Sender policy => any node not in penultimate set should not implement the policy.
 				if !slices.Contains(penultimateNodes, m) {
-					f.Write([]byte(fmt.Sprintf("(assert (= 0 %s))\n", I[m][j])))
+					// For all request contexts, the policy should not be implemented at m.
+					for i := 0; i < numContexts; i++ {
+						f.Write([]byte(fmt.Sprintf("(assert (= 0 %s))\n", E[i][j][m])))
+					}
 				}
 			} else if policies[j].GetConstraint() == xPlane.RECEIVER {
 				// Receiver policy => any node not in lastNodes set should not implement the policy.
 				if !slices.Contains(lastNodes, m) {
-					f.Write([]byte(fmt.Sprintf("(assert (= 0 %s))\n", I[m][j])))
+					// For all request contexts, the policy should not be implemented at m.
+					for i := 0; i < numContexts; i++ {
+						f.Write([]byte(fmt.Sprintf("(assert (= 0 %s))\n", E[i][j][m])))
+					}
 				}
 			} else {
 				// Except for penultimate and last nodes, no other node should implement the policy.
 				if !slices.Contains(penultimateNodes, m) && !slices.Contains(lastNodes, m) {
-					f.Write([]byte(fmt.Sprintf("(assert (= 0 %s))\n", I[m][j])))
+					// For all request contexts, the policy should not be implemented at m.
+					for i := 0; i < numContexts; i++ {
+						f.Write([]byte(fmt.Sprintf("(assert (= 0 %s))\n", E[i][j][m])))
+					}
 				}
 			}
 		}
@@ -680,7 +689,12 @@ func GenerateOptimizationFile(policies []xPlane.Policy, applEdges map[string][]s
 
 	for m := 0; m < numServices; m++ {
 		for j := 0; j < numPolicies; j++ {
-			f.Write([]byte(fmt.Sprintf("(get-value (%s))\n", I[m][j])))
+			enforcesList := make([]string, 0)
+			for i := 0; i < numContexts; i++ {
+				enforcesList = append(enforcesList, fmt.Sprintf("(= 1 %s)", E[i][j][m]))
+			}
+			enforces := fmt.Sprintf("(or %s)", strings.Join(enforcesList, " "))
+			f.Write([]byte(fmt.Sprintf("(get-value (%s))\n", enforces)))
 		}
 	}
 
@@ -724,14 +738,14 @@ func RunSolver(services []string, numPolicies int) (bool, []string, [][]string) 
 		}
 	}
 
-	// Get the values of I variables.
+	// Get the values of E variables.
 	for m := 0; m < len(services); m++ {
 		for j := 0; j < numPolicies; j++ {
 			// The value of I[m][j] is in the form (I_m_j value).
 			// Split the line by space and get the value.
 			line := strings.Split(solverOutputLines[len(services)+1+m*numPolicies+j], " ")
-			iVal := line[1][:len(line[1])-2]
-			if iVal == "1" && X[m] == "1" {
+			iVal := line[len(line)-1][:len(line[len(line)-1])-2]
+			if iVal == "true" && X[m] == "1" {
 				impls[j] = append(impls[j], services[m])
 			}
 		}

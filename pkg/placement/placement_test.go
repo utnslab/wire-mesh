@@ -153,7 +153,7 @@ func TestAdditionalPolicy(t *testing.T) {
 	}
 
 	// Get the optimal placement for the given policies.
-	sidecars, _ := GetPlacementParallel(policies, applEdges, services, hasSidecar, *threads)
+	sidecars, _ := GetPlacement(policies, applEdges, services, hasSidecar)
 
 	// Update hasSidecar.
 	for _, s := range sidecars {
@@ -166,14 +166,14 @@ func TestAdditionalPolicy(t *testing.T) {
 	}
 
 	// Generate more policies.
-	numPolicies := []int{1, 2, 4, 8, 16}
+	numPolicies := []int{1, 5, 10, 15, 20}
 	times := make([]float64, len(numPolicies))
 	for i, num := range numPolicies {
 		policies = GeneratePolicies(applEdges, num)
 
 		// Get the optimal placement for the given policies.
 		start := time.Now()
-		GetPlacementParallel(policies, applEdges, services, hasSidecar, *threads)
+		GetPlacement(policies, applEdges, services, hasSidecar)
 		elapsed := time.Since(start)
 
 		times[i] = float64(elapsed.Milliseconds())
