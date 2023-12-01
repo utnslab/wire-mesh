@@ -9,3 +9,6 @@
 [submodule "vendor/github.com/mitchellh/go-z3"]
 	path = ext/go-z3
 	url = git@github.com:mholtom/go-z3.git
+[submodule "bpf-pathprop"]
+	path = bpf-pathprop
+	url = git@github.com:DivyanshuSaxena/bpf-pathprop.git
