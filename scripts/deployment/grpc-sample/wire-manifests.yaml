@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: go-grpc-server
+  name: go-grpc-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: go-grpc-server
+  template:
+    metadata:
+      labels:
+        app: go-grpc-server
+    spec:
+      volumes:
+      - name: socks
+        emptyDir: {}
+      containers:
+      - image: divyanshus/greeter-server:latest
+        name: greeter-server
+        ports:
+        - containerPort: 50051
+      - image: divyanshus/copper:non-init
+        name: sidecar-bridge
+        env:
+        - name: RUST_LOG
+          value: trace
+        volumeMounts:
+        - name: socks
+          mountPath: /socks
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+            - NET_ADMIN
+              SYS_ADMIN
+        command: ["ebpf-bridge"]
+        args: ["driver", "--config", "/configs/ebpf-bridge-config.yaml"]
+      - image: divyanshus/copper:non-init
+        name: sidecar
+        env:
+        - name: RUST_LOG
+          value: trace
+        volumeMounts:
+        - name: socks
+          mountPath: /socks
+        command: ["dyn-proxy"]
+        args: ["run", "--config", "/configs/proxy-config.yaml"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: go-grpc-server
+  name: go-grpc-server
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 50051
+  selector:
+    app: go-grpc-server
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grpc-ingress
+  namespace: default
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: grpctest.dev.mydomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: go-grpc-greeter-server
+            port:
+              number: 80

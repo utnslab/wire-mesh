@@ -9,3 +9,10 @@ build/
 
 *.smt
 *_output
+
+# Generated files
+*.png
+*.pdf
+
+# Config files
+eval_config.json
