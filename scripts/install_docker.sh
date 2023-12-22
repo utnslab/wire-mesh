@@ -1,6 +1,5 @@
 #!/bin/bash
 # Install Docker, Kubernetes, and other dependencies.
-# Set env variable IS_CONTROL_NODE to 1 if this is the control node.
 
 showHelp() {
 cat << EOF  

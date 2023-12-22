@@ -119,7 +119,7 @@ for host in $HOSTS ; do
 
     wget https://go.dev/dl/go1.20.7.linux-amd64.tar.gz &&
     sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.20.7.linux-amd64.tar.gz &&
-    echo \"export PATH=\$PATH:/usr/local/go/bin\" >> ~/.bashrc &&
+    echo 'export PATH=\$PATH:/usr/local/go/bin' >> ~/.bashrc &&
     rm go1.20.7.linux-amd64.tar.gz &&
 
     curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 &&

@@ -9,7 +9,7 @@
 
 showHelp() {
 cat << EOF  
-Usage: <script_name> -m <mesh-name> [-isc] [-I <ip>]
+Usage: <script_name> -m <mesh-name> [-isc] [-I <ip>] [-r <rate>]
 Attach bpf programs for a specific service.
 
 -h, -help,      --help        Display help
@@ -18,6 +18,7 @@ Attach bpf programs for a specific service.
 -s, -server,    --server      Whether to start the stats server
 -c, -client,    --client      Whether to start the stats client
 -I, -ip,        --ip          IP address of the stats server
+-r, -rate,      --rate        Rate of requests per second
 
 EOF
 }
@@ -27,8 +28,9 @@ INIT=0
 SERVER=0
 CLIENT=0
 IP=""
+RATE=2000
 
-options=$(getopt -l "help,mesh:,init,server,client,ip:" -o "hm:iscI:" -a -- "$@")
+options=$(getopt -l "help,mesh:,init,server,client,ip:" -o "hm:iscI:r:" -a -- "$@")
 
 eval set -- "$options"
 
@@ -55,6 +57,10 @@ while true; do
       shift
       IP=$1
       ;;
+  -r|--rate)
+      shift
+      RATE=$1
+      ;;
   --)
       shift
       break;;
@@ -72,7 +78,15 @@ if [[ $INIT -eq 1 ]]; then
   # Pull docker image 
   docker pull divyanshus/hotelreservation
   
-  git clone https://github.com/DivyanshuSaxena/DeathStarBench.git
+  if [ ! -d "$TESTBED/DeathStarBench" ]; then
+    git clone https://github.com/DivyanshuSaxena/DeathStarBench.git
+
+    # Make wrk2 executable
+    pushd DeathStarBench/wrk2
+    make -j 4
+    popd
+  fi
+
   if [[ $MESH == "wire" ]]; then
     pushd scripts/deployment/reservation
     ./wire_init.sh
@@ -82,11 +96,6 @@ if [[ $INIT -eq 1 ]]; then
     kubectl apply -Rf kubernetes/
     popd
   fi
-
-  # Make wrk2 executable
-  pushd DeathStarBench/wrk2
-  make -j 4
-  popd
 
   # Wait for the pods to get running
   sleep 1m
@@ -114,14 +123,14 @@ if [[ $CLIENT -eq 1 ]]; then
   # Warm-up
   pushd DeathStarBench/hotelReservation
   ../wrk2/wrk -D exp -t 5 -c 5 -d 60 -L -s ./wrk2/scripts/hotel-reservation/mixed-workload_type_1.lua http://$GATEWAY_URL -R 10
-  
+
   # Start the stats client
   sudo python3 $TESTBED/scripts/utils/stats_client.py $TESTBED/scripts/utils/config reservation_$MESH > $TESTBED/logs/python.log 2>&1 &
-  
+
   sleep 30
 
   # Run queries to log timings
-  ../wrk2/wrk -D exp -t 10 -c 10 -d 60 -L -s ./wrk2/scripts/hotel-reservation/mixed-workload_type_1.lua http://$GATEWAY_URL -R 2000 >> $TESTBED/out/time_reservation_$MESH.run 2>&1
+  ../wrk2/wrk -D exp -t 10 -c 10 -d 60 -L -s ./wrk2/scripts/hotel-reservation/mixed-workload_type_1.lua http://$GATEWAY_URL -R $RATE >> $TESTBED/out/time_reservation_${RATE}_${MESH}.run 2>&1
 
   # Kill CPU and Memory measurement
   pid=$(pgrep -f stats_client)

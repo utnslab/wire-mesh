@@ -4,11 +4,12 @@
 # 2: Name of application
 # 3: Service mesh name
 # 4: Directory to put the output files
+# 5: Request rate to run the experiment at
 
 # Check arguments
-if [ $# -ne 4 ]; then
-    echo "Usage: <script_name> <experiment_name> <application_name> <service_mesh_name> <output_dir>"
-    exit 1
+if [ $# -ne 5 ]; then
+  echo "Usage: <script_name> <experiment_name> <application_name> <service_mesh_name> <output_dir> <rate>"
+  exit 1
 fi
 
 START_NODE=0
@@ -20,6 +21,7 @@ readarray -t HOSTS   <<<"$RAW_HOSTS"
 
 APPL=$2
 MESH=$3
+RATE=$5
 
 # List of ip addresses of the nodes
 IP_ADDR=(10.10.1.1 10.10.1.2 10.10.1.3 10.10.1.4)
@@ -61,30 +63,30 @@ if [[ $INGRESS -eq 1 ]]; then
   ssh -o StrictHostKeyChecking=no ${CLIENT_HOST} "tmux new-session -d -s run_query \"
     pushd \$HOME/scripts/deployment/$APPL &&
     rm -f \$HOME/out/time_${APPL}_${MESH}.run &&
-    ./run_query.sh --mesh $MESH -c -I ${IP_ADDR[0]} --port ${INGRESS_PORT} &&
+    ./run_query.sh --mesh $MESH -c -I ${IP_ADDR[0]} --port ${INGRESS_PORT} -r ${RATE} &&
     popd\""
 else
   ssh -o StrictHostKeyChecking=no ${CLIENT_HOST} "tmux new-session -d -s run_query \"
     pushd \$HOME/scripts/deployment/$APPL &&
     rm -f \$HOME/out/time_${APPL}_${MESH}.run &&
-    ./run_query.sh --mesh $MESH -c -I ${IP_ADDR[0]} &&
+    ./run_query.sh --mesh $MESH -c -I ${IP_ADDR[0]} -r ${RATE} &&
     popd\""
 fi
 
 # Wait for the stats to be completed.
-sleep 60
+sleep 2m
 
 # Wait for user to press enter
 read -p "Press enter to stop the experiment and get stats ..."
 
 # Get the stats from each of the nodes
-mkdir -p $4/results-$(date +%d.%m-%H:%M)
-cp scripts/deployment/$APPL/run_query.sh $4/results-$(date +%d.%m-%H:%M)/
+mkdir -p $4/${APPL}-${MESH}-${RATE}-$(date +%d.%m-%H:%M)
+cp scripts/deployment/$APPL/run_query.sh $4/${APPL}-${MESH}-${RATE}-$(date +%d.%m-%H:%M)/
 for ((i = 0; i < ${#HOSTS[@]}; i++)); do
   echo "Getting stats from ${HOSTS[$i]} ..."
-  scp -o StrictHostKeyChecking=no ${HOSTS[$i]}:~/out/stats_${APPL}_${MESH}.pkl $4/results-$(date +%d.%m-%H:%M)/stats_${APPL}_${MESH}_$i.pkl
+  scp -o StrictHostKeyChecking=no ${HOSTS[$i]}:~/out/stats_${APPL}_${MESH}.pkl $4/${APPL}-${MESH}-${RATE}-$(date +%d.%m-%H:%M)/stats_${APPL}_${MESH}_$i.pkl
 done
 
 # Get time from the client node
 echo "Getting time from ${CLIENT_HOST} ..."
-scp -o StrictHostKeyChecking=no ${CLIENT_HOST}:~/out/time_${APPL}_${MESH}.run $4/results-$(date +%d.%m-%H:%M)/
+scp -o StrictHostKeyChecking=no ${CLIENT_HOST}:~/out/time_${APPL}_${RATE}_${MESH}.run $4/${APPL}-${MESH}-${RATE}-$(date +%d.%m-%H:%M)/

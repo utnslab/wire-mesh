@@ -10,7 +10,7 @@ HOSTS=$(./cloudlab/nodes.sh $1 $2 $3)
 TARBALL=testbed.tar.gz
 PROJECT_DIRNAME=testbed
 
-tar -czf $TARBALL common/ headers/ scripts/ xdp-tools/ path-router/
+tar -czf $TARBALL scripts/
 
 for host in $HOSTS; do
   echo "Pushing to $host ..."
