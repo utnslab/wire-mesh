@@ -10,7 +10,7 @@
 showHelp() {
 cat << EOF  
 Usage: <script_name> -m <mesh-name> [-isc] [-I <ip>] [-r <rate>]
-Attach bpf programs for a specific service.
+Run query for the Hotel Reservation benchmark with different service mesh
 
 -h, -help,      --help        Display help
 -m, -mesh,      --mesh        Service mesh name to put in the output file

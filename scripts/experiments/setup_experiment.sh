@@ -3,11 +3,11 @@
 showHelp() {
 cat << EOF  
 Usage: <script_name> [-a <appl>] [-m <mesh>] [-h]
-Setup application and mesh **on the control node**.
+Setup application and mesh. Run **on the control node**.
 
 -h, -help,      --help        Display help
--a, -app,       --app         Application to run (reservation, bookinfo, boutique, social-network)
--m, -mesh,      --mesh        Name of the mesh to use (istio, linkerd, plain, nginx)
+-a, -app,       --app         Application to run (reservation, bookinfo, boutique, social)
+-m, -mesh,      --mesh        Name of the mesh to use (istio, linkerd, plain, nginx, wire)
 
 EOF
 }
@@ -44,8 +44,8 @@ done
 : "${TESTBED:=$HOME}"
 pushd $TESTBED/scripts
 
-# Install service mesh on the control node.
-if [[ "$MESH" == "istio" ]] && [[ "$APPL" == "boutique" || "$APPL" == "bookinfo" ]]; then
+# Check if mesh is not istio and app is boutique or bookinfo
+if [[ $MESH != "istio" && ($APP == "boutique" || $APP == "bookinfo") ]]; then
   ./mesh_setup.sh --mesh $MESH --ingress
 else
   ./mesh_setup.sh --mesh $MESH
