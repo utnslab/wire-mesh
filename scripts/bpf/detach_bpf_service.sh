@@ -1,11 +1,5 @@
 #!/bin/bash
 # Detach sockops and fast path bpf program for a specific service.
-# Arguments:
-# --service: service name
-# --both: detach both sockops and fast path, else fast path only
-# --skb: Detach SKB
-# --skmsg: Detach SK_MSG
-# --control: Whether running the script on the control node
 
 showHelp() {
 cat << EOF  
@@ -104,7 +98,7 @@ $CMD | grep $SERVICE | while read -r POD_INFO; do
   fi
 
   # Detach sockops program from the pod's cgroup.
-  pushd $TESTBED/path-router
+  pushd $TESTBED/bpf-pathprop/path-router
   if [ $SKB -eq 1 ]; then
     echo "Detaching SKB bpf program from $SERVICE ..."
     sudo ./load_sk_skb --cgroup $POD_CGROUP --unload

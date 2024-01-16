@@ -88,17 +88,23 @@ ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "cd \$HOME; ./scripts/install_do
 # Get the join command
 scp -rq -o StrictHostKeyChecking=no ${CONTROL_NODE}:~/command.txt command.txt >/dev/null 2>&1
 
+# Get the admin.conf file
+ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "cd \$HOME; sudo cp /etc/kubernetes/admin.conf .; sudo chmod 644 admin.conf"
+scp -rq -o StrictHostKeyChecking=no ${CONTROL_NODE}:~/admin.conf admin.conf >/dev/null 2>&1
+
 # Setup worker nodes
 for host in $HOSTS; do
   echo "Preparing $host ..."
   if [[ "$host" != "${CONTROL_NODE}" ]]; then
     scp -rq -o StrictHostKeyChecking=no command.txt $host:~/ >/dev/null 2>&1
+    scp -rq -o StrictHostKeyChecking=no admin.conf $host:~/ >/dev/null 2>&1
     ssh -o StrictHostKeyChecking=no $host "cd \$HOME; sudo ./scripts/install_docker.sh --init > install_docker.log 2>&1" &
   fi
 done
 wait
 
 rm command.txt
+rm admin.conf
 
 # After joining the nodes, make a rollout restart of coredns on control node.
 ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "kubectl -n kube-system rollout restart deployment coredns"

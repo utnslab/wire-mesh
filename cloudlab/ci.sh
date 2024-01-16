@@ -10,7 +10,7 @@ HOSTS=$(./cloudlab/nodes.sh $1 $2 $3)
 TARBALL=testbed.tar.gz
 PROJECT_DIRNAME=testbed
 
-tar -czf $TARBALL scripts/
+tar -czf $TARBALL scripts/ bpf-pathprop/
 
 for host in $HOSTS; do
   echo "Pushing to $host ..."
@@ -30,7 +30,12 @@ if [ $4 -eq 1 ]; then
   for host in $HOSTS; do
     echo "Compiling on $host ..."
     ssh -o StrictHostKeyChecking=no $host "tmux new-session -d -s compile \"
-      pushd \$HOME/path-router &&
+      pushd \$HOME/bpf-pathprop/xdp-tools &&
+      ./configure &&
+      make libxdp &&
+      popd &&
+
+      pushd \$HOME/bpf-pathprop/path-router &&
       make &&
       popd\""
   done

@@ -57,6 +57,7 @@ func main() {
 	lastReport := time.Now()
 
 	// Call SayHello repetitively and measure the latency.
+	count := 0
 	for i := 0; i < 100000; i++ {
 		start := time.Now()
 		_, err := c.SayHello(ctx, &pb.HelloRequest{Name: name})
@@ -64,6 +65,7 @@ func main() {
 			log.Fatalf("could not greet: %v", err)
 		}
 		elapsed := time.Since(start)
+		count++
 
 		h.RecordValue(elapsed.Nanoseconds())
 
@@ -73,6 +75,10 @@ func main() {
 				time.Duration(h.ValueAtQuantile(95)), time.Duration(h.ValueAtQuantile(99)),
 				time.Duration(h.ValueAtQuantile(99.9)), time.Duration(h.ValueAtQuantile(99.99)),
 				time.Duration(h.Max()))
+
+			log.Printf("Number of requests: %v", count)
+			count = 0
+
 			lastReport = time.Now()
 		}
 	}

@@ -1,11 +1,5 @@
 #!/bin/bash
 # Attach sockops bpf program for a specific service.
-# Arguments:
-# --service: service name
-# --both: load both sockops and fast path, else fast path only
-# --skb: Load SKB
-# --skmsg: Load SK_MSG
-# --control: Whether running the script on the control node
 
 showHelp() {
 cat << EOF  
@@ -107,7 +101,7 @@ $CMD | grep $SERVICE | while read -r POD_INFO; do
 
   # Attach sockops program to the pod's cgroup.
   echo "Attaching sockops bpf program to $SERVICE ..."
-  pushd $TESTBED/path-router
+  pushd $TESTBED/bpf-pathprop/path-router
   if [ $OPS -eq 1 ]; then
     sudo ./load_sockops --cgroup $POD_CGROUP
   fi
