@@ -209,7 +209,8 @@ func ExpandPolicyContext(policyContext []string, applEdges map[string][]string, 
 // list declaring whether a service already has a sidecar and a target (number of changes).
 // Returns a boolean indicating whether the optimization was successful, a list of services
 // where the sidecar should be placed, and a map of which sidecars implement which policies.
-func OptimizeForTarget(policies []xPlane.Policy, applEdges map[string][]string, services []string, hasSidecar []bool, target int) (bool, []string, [][]string) {
+// @Deprecated
+func OptimizeForTargetDeprecated(policies []xPlane.Policy, applEdges map[string][]string, services []string, hasSidecar []bool, target int) (bool, []string, [][]string) {
 	// contextToPolicyMap maps request contexts (as string) to a list.
 	// The list stores the indexes to the policies in the policies array.
 	contextToPolicyMap := make(map[string][]int)
@@ -465,11 +466,10 @@ func OptimizeForTarget(policies []xPlane.Policy, applEdges map[string][]string, 
 }
 
 // GenerateOptimizationFile takes a list of policies, the application graph, a list of all services,
-// list declaring whether a service already has a sidecar and a target (number of changes).
+// list declaring whether a service already has a sidecar and a list denoting the cost of adding a sidecar.
 //
 // It generates the z3 constraints and the objective function, which can then be used by a z3 solver.
-// Overall functionality is similar to the OptimizeForTarget function.
-func GenerateOptimizationFile(policies []xPlane.Policy, applEdges map[string][]string, services []string, hasSidecar []bool) {
+func GenerateOptimizationFile(policies []xPlane.Policy, applEdges map[string][]string, services []string, sidecarAssignment map[string]int, sidecarCost []int) {
 	// contextToPolicyMap maps request contexts (as string) to a list.
 	// The list stores the indexes to the policies in the policies array.
 	contextToPolicyMap := make(map[string][]int)
@@ -492,7 +492,7 @@ func GenerateOptimizationFile(policies []xPlane.Policy, applEdges map[string][]s
 	// Useful variables.
 	numPolicies := len(policies)
 	numServices := len(svcMap)
-	numContexts := len(contextToPolicyMap)
+	numDataplanes := len(sidecarCost)
 
 	// Get all keys from the map.
 	allContexts := make([]string, len(contextToPolicyMap))
@@ -511,190 +511,165 @@ func GenerateOptimizationFile(policies []xPlane.Policy, applEdges map[string][]s
 	// Define z3 variables.
 	glog.Info("Defining variables")
 
-	// // Define the "Implements" variables.
-	// I := make([][]string, numServices)
-	// for m := 0; m < numServices; m++ {
-	// 	I[m] = make([]string, numPolicies)
-	// 	for j := 0; j < numPolicies; j++ {
-	// 		I[m][j] = fmt.Sprintf("I_%d_%d", m, j)
-	// 		f.Write([]byte(fmt.Sprintf("(declare-const I_%d_%d Int)\n", m, j)))
-	// 		f.Write([]byte(fmt.Sprintf("(assert (or (= I_%d_%d 0) (= I_%d_%d 1)))\n", m, j, m, j)))
-	// 	}
-	// }
-
 	// Define the "Exists" variables.
-	X := make([]string, numServices)
-	for m := 0; m < numServices; m++ {
-		X[m] = fmt.Sprintf("X_%d", m)
-		f.Write([]byte(fmt.Sprintf("(declare-const X_%d Int)\n", m)))
-		f.Write([]byte(fmt.Sprintf("(assert (or (= X_%d 0) (= X_%d 1)))\n", m, m)))
+	X := make([][]string, numServices)
+	for i := 0; i < numDataplanes; i++ {
+		X[i] = make([]string, numServices)
+		for m := 0; m < numServices; m++ {
+			X[i][m] = fmt.Sprintf("X_%d_%d", i, m)
+			f.Write([]byte(fmt.Sprintf("(declare-const X_%d_%d Int)\n", i, m)))
+			f.Write([]byte(fmt.Sprintf("(assert (or (= X_%d_%d 0) (= X_%d_%d 1)))\n", i, m, i, m)))
+		}
 	}
 
 	// Define the "Executes" variables.
-	E := make([][][]string, numContexts)
-	for i := 0; i < numContexts; i++ {
-		E[i] = make([][]string, numPolicies)
+	E := make([][]string, numPolicies)
+	for j := 0; j < numPolicies; j++ {
+		E[j] = make([]string, numServices)
+		for m := 0; m < numServices; m++ {
+			E[j][m] = fmt.Sprintf("E_%d_%d", j, m)
+			f.Write([]byte(fmt.Sprintf("(declare-const E_%d_%d Int)\n", j, m)))
+			f.Write([]byte(fmt.Sprintf("(assert (or (= E_%d_%d 0) (= E_%d_%d 1)))\n", j, m, j, m)))
+		}
+	}
+
+	// Define the "Supports" variables.
+	S := make([][]string, numDataplanes)
+	for i := 0; i < numDataplanes; i++ {
+		S[i] = make([]string, numPolicies)
 		for j := 0; j < numPolicies; j++ {
-			E[i][j] = make([]string, numServices)
-			for m := 0; m < numServices; m++ {
-				E[i][j][m] = fmt.Sprintf("E_%d_%d_%d", i, j, m)
-				f.Write([]byte(fmt.Sprintf("(declare-const E_%d_%d_%d Int)\n", i, j, m)))
-				f.Write([]byte(fmt.Sprintf("(assert (or (= E_%d_%d_%d 0) (= E_%d_%d_%d 1)))\n", i, j, m, i, j, m)))
-			}
+			S[i][j] = fmt.Sprintf("S_%d_%d", i, j)
+			f.Write([]byte(fmt.Sprintf("(declare-const S_%d_%d Int)\n", i, j)))
+			f.Write([]byte(fmt.Sprintf("(assert (or (= S_%d_%d 0) (= S_%d_%d 1)))\n", i, j, i, j)))
 		}
 	}
 
 	// Add the constraints.
 	glog.Info("Defining constraints")
 
-	// Constraint 2 : Some node can implement a policy for a particular request context iff the request context belongs to the policy context.
-	for i := 0; i < numContexts; i++ {
-		validPolicies := contextToPolicyMap[allContexts[i]]
-		for j := 0; j < numPolicies; j++ {
-			constraint_list := make([]string, 0)
-			for m := 0; m < numServices; m++ {
-				constraint_list = append(constraint_list, fmt.Sprintf("(= 2 (+ %s %s))", E[i][j][m], X[m]))
-			}
-
-			someNodeImplements := fmt.Sprintf("(or %s)", strings.Join(constraint_list, " "))
-
-			// Write the constraint to the file.
-			if slices.Contains(validPolicies, j) {
-				f.Write([]byte(fmt.Sprintf("(assert %s)\n", someNodeImplements)))
-			} else {
-				f.Write([]byte(fmt.Sprintf("(assert (not %s))\n", someNodeImplements)))
-			}
-		}
-	}
-
-	// Constraint 3 : A request context can be implemented only by a node on its path.
-	for i := 0; i < numContexts; i++ {
-		reqContext := strings.Split(allContexts[i], ",")
-		for j := 0; j < numPolicies; j++ {
-			// Iterate over all services map.
-			for svc, m := range svcMap {
-				if !slices.Contains(reqContext, svc) {
-					f.Write([]byte(fmt.Sprintf("(assert (= 0 %s))\n", E[i][j][m])))
-				}
-			}
-		}
-	}
-
-	// Constraint 4 : Some policies can be implemented only at sender or receiver.
+	// Constraint 1 : Policies must be implemented either by all penultimate nodes or all last nodes.
+	// Constraint 2 : Policies must be implemented as per their annotation constraints.
 	for j := 0; j < numPolicies; j++ {
 		penultimateNodes, lastNodes := getPolicyImpls(policies[j].GetContext(), applEdges, svcMap)
 		// glog.Info("For policy context ", policies[j].GetContext(), " got penultimate nodes: ", penultimateNodes, " and last nodes: ", lastNodes)
 
-		// // Either all penultimate nodes implement the policy or all last nodes implement the policy.
-		// penultimateImplements := ""
-		// lastImplements := ""
+		// Either all penultimate nodes implement the policy or all last nodes implement the policy.
+		penultimateImplements := ""
+		lastImplements := ""
 
-		// penultimateList := make([]string, 0)
-		// lastList := make([]string, 0)
+		penultimateList := make([]string, 0)
+		lastList := make([]string, 0)
 
-		// if policies[j].GetConstraint() != xPlane.RECEIVER {
-		// 	for _, m := range penultimateNodes {
-		// 		penultimateList = append(penultimateList, fmt.Sprintf("(= 1 %s)", I[m][j]))
-		// 	}
-		// 	penultimateImplements = fmt.Sprintf("(and %s)", strings.Join(penultimateList, " "))
-		// }
+		if policies[j].GetConstraint() != xPlane.RECEIVER {
+			for _, m := range penultimateNodes {
+				penultimateList = append(penultimateList, fmt.Sprintf("(= 1 %s)", E[j][m]))
+			}
+			penultimateImplements = fmt.Sprintf("(and %s)", strings.Join(penultimateList, " "))
+		}
 
-		// if policies[j].GetConstraint() != xPlane.SENDER {
-		// 	for _, m := range lastNodes {
-		// 		lastList = append(lastList, fmt.Sprintf("(= 1 %s)", I[m][j]))
-		// 	}
-		// 	lastImplements = fmt.Sprintf("(and %s)", strings.Join(lastList, " "))
-		// }
+		if policies[j].GetConstraint() != xPlane.SENDER {
+			for _, m := range lastNodes {
+				lastList = append(lastList, fmt.Sprintf("(= 1 %s)", E[j][m]))
+			}
+			lastImplements = fmt.Sprintf("(and %s)", strings.Join(lastList, " "))
+		}
 
-		// // Write the constraint to the file.
-		// if penultimateImplements == "" {
-		// 	f.Write([]byte(fmt.Sprintf("(assert %s)\n", lastImplements)))
-		// } else if lastImplements == "" {
-		// 	f.Write([]byte(fmt.Sprintf("(assert %s)\n", penultimateImplements)))
-		// } else {
-		// 	f.Write([]byte(fmt.Sprintf("(assert (xor %s %s))\n", penultimateImplements, lastImplements)))
-		// }
+		// Write the constraint to the file.
+		if len(penultimateNodes) == 0 {
+			f.Write([]byte(fmt.Sprintf("(assert %s)\n", lastImplements)))
+		} else if len(lastImplements) == 0 {
+			f.Write([]byte(fmt.Sprintf("(assert %s)\n", penultimateImplements)))
+		} else {
+			f.Write([]byte(fmt.Sprintf("(assert (xor %s %s))\n", penultimateImplements, lastImplements)))
+		}
 
 		// All other nodes do not implement the policy.
 		for m := 0; m < numServices; m++ {
 			if policies[j].GetConstraint() == xPlane.SENDER {
 				// Sender policy => any node not in penultimate set should not implement the policy.
 				if !slices.Contains(penultimateNodes, m) {
-					// For all request contexts, the policy should not be implemented at m.
-					for i := 0; i < numContexts; i++ {
-						f.Write([]byte(fmt.Sprintf("(assert (= 0 %s))\n", E[i][j][m])))
-					}
+					f.Write([]byte(fmt.Sprintf("(assert (= 0 %s))\n", E[j][m])))
 				}
 			} else if policies[j].GetConstraint() == xPlane.RECEIVER {
 				// Receiver policy => any node not in lastNodes set should not implement the policy.
 				if !slices.Contains(lastNodes, m) {
-					// For all request contexts, the policy should not be implemented at m.
-					for i := 0; i < numContexts; i++ {
-						f.Write([]byte(fmt.Sprintf("(assert (= 0 %s))\n", E[i][j][m])))
-					}
+					f.Write([]byte(fmt.Sprintf("(assert (= 0 %s))\n", E[j][m])))
 				}
 			} else {
 				// Except for penultimate and last nodes, no other node should implement the policy.
 				if !slices.Contains(penultimateNodes, m) && !slices.Contains(lastNodes, m) {
-					// For all request contexts, the policy should not be implemented at m.
-					for i := 0; i < numContexts; i++ {
-						f.Write([]byte(fmt.Sprintf("(assert (= 0 %s))\n", E[i][j][m])))
-					}
+					f.Write([]byte(fmt.Sprintf("(assert (= 0 %s))\n", E[j][m])))
 				}
 			}
 		}
 	}
 
-	// Constraint 5 : Atmost one node implements a policy for a request context.
-	for i := 0; i < numContexts; i++ {
-		validPolicies := contextToPolicyMap[allContexts[i]]
+	// Constraint 3 : For any service m, at most one i can be such that X[i][m] = 1.
+	for m := 0; m < numServices; m++ {
+		xList := make([]string, 0)
+		for i := 0; i < numDataplanes; i++ {
+			xList = append(xList, X[i][m])
+		}
+		f.Write([]byte(fmt.Sprintf("(assert (<= (+ %s) 1))\n", strings.Join(xList, " "))))
+	}
+
+	// Constraint 4 : If E[j][m] = 1, then X[i][m] = 1 and S[i][j] = 1 for some i.
+	for j := 0; j < numPolicies; j++ {
+		for m := 0; m < numServices; m++ {
+			eVal := fmt.Sprintf("(= 1 %s)", E[j][m])
+			xsList := make([]string, 0)
+			for i := 0; i < numDataplanes; i++ {
+				xsList = append(xsList, fmt.Sprintf("(and (= 1 %s) (= 1 %s))", X[i][m], S[i][j]))
+			}
+			f.Write([]byte(fmt.Sprintf("(assert (=> %s (or %s)))\n", eVal, strings.Join(xsList, " "))))
+		}
+	}
+
+	// Constraint 5 : If policy j is supported by dataplane i, then S[i][j] = 1.
+	for i := 0; i < numDataplanes; i++ {
 		for j := 0; j < numPolicies; j++ {
-			// Calculate the total number of nodes that implement the policy for the request context.
-			totalImplementsList := make([]string, 0)
-
-			for m := 0; m < numServices; m++ {
-				totalImplementsList = append(totalImplementsList, E[i][j][m])
-			}
-
-			totalImplements := fmt.Sprintf("(+ %s)", strings.Join(totalImplementsList, " "))
-			if slices.Contains(validPolicies, j) {
-				f.Write([]byte(fmt.Sprintf("(assert (= 1 %s))\n", totalImplements)))
+			supportedDataplanes := policies[j].GetDataplanes()
+			if slices.Contains(supportedDataplanes, i) {
+				f.Write([]byte(fmt.Sprintf("(assert (= 1 %s))\n", S[i][j])))
 			} else {
-				f.Write([]byte(fmt.Sprintf("(assert (= 0 %s))\n", totalImplements)))
+				f.Write([]byte(fmt.Sprintf("(assert (= 0 %s))\n", S[i][j])))
 			}
+		}
+	}
+
+	// Constraint 6 : If dataplane i is already assigned to a service m, then X[i][m] = 1.
+	for m := 0; m < numServices; m++ {
+		if i, ok := sidecarAssignment[services[m]]; ok {
+			f.Write([]byte(fmt.Sprintf("(assert (= 1 %s))\n", X[i][m])))
 		}
 	}
 
 	// Add the objective function.
-	numChangesList := make([]string, 0)
-	for m := 0; m < numServices; m++ {
-		if hasSidecar[m] {
-			// If sidecar is already there then X[m] = 1 would correspond to no change.
-			numChangesList = append(numChangesList, fmt.Sprintf("(- %s 1)", X[m]))
-		} else {
-			// If sidecar is not there then X[m] = 1 would correspond to a change.
-			numChangesList = append(numChangesList, X[m])
+	cost := make([]string, 0)
+	for i := 0; i < numDataplanes; i++ {
+		for m := 0; m < numServices; m++ {
+			cost = append(cost, fmt.Sprintf("(* %d %s)", sidecarCost[i], X[i][m]))
 		}
 	}
-	numChanges := fmt.Sprintf("(+ %s)", strings.Join(numChangesList, " "))
-	f.Write([]byte(fmt.Sprintf("(minimize %s)\n", numChanges)))
+	totalCost := fmt.Sprintf("(+ %s)", strings.Join(cost, " "))
+	f.Write([]byte(fmt.Sprintf("(minimize %s)\n", totalCost)))
 
 	// Add instructions for the z3 solver.
 	f.Write([]byte("(check-sat)\n"))
 
-	// Get the values of I and X variables.
-	for m := 0; m < numServices; m++ {
-		f.Write([]byte(fmt.Sprintf("(get-value (%s))\n", X[m])))
+	// Get the values of the X variables.
+	for i := 0; i < numDataplanes; i++ {
+		for m := 0; m < numServices; m++ {
+			xVal := fmt.Sprintf("(= 1 %s)", X[i][m])
+			f.Write([]byte(fmt.Sprintf("(get-value (%s))\n", xVal)))
+		}
 	}
 
-	for m := 0; m < numServices; m++ {
-		for j := 0; j < numPolicies; j++ {
-			enforcesList := make([]string, 0)
-			for i := 0; i < numContexts; i++ {
-				enforcesList = append(enforcesList, fmt.Sprintf("(= 1 %s)", E[i][j][m]))
-			}
-			enforces := fmt.Sprintf("(or %s)", strings.Join(enforcesList, " "))
-			f.Write([]byte(fmt.Sprintf("(get-value (%s))\n", enforces)))
+	// Get the values of the E variables.
+	for j := 0; j < numPolicies; j++ {
+		for m := 0; m < numServices; m++ {
+			eVal := fmt.Sprintf("(= 1 %s)", E[j][m])
+			f.Write([]byte(fmt.Sprintf("(get-value (%s))\n", eVal)))
 		}
 	}
 
@@ -703,7 +678,7 @@ func GenerateOptimizationFile(policies []xPlane.Policy, applEdges map[string][]s
 }
 
 // Runs the z3 solver on the generated file and returns the output.
-func RunSolver(services []string, numPolicies int) (bool, []string, [][]string) {
+func RunSolver(services []string, numSidecars int, numPolicies int) (bool, map[string]int, [][]string) {
 	// Use the z3 command line tool to run the solver.
 	cmd := exec.Command("z3", "z3_constraints.smt")
 	out, err := cmd.CombinedOutput()
@@ -723,29 +698,41 @@ func RunSolver(services []string, numPolicies int) (bool, []string, [][]string) 
 	}
 
 	// Parse solverOutput to get the values of X and I variables.
-	sidecars := make([]string, 0)
 	impls := make([][]string, numPolicies)
-	X := make([]string, len(services))
+	X := make([]int, len(services))
+
+	// Initialize X to -1.
+	for i := 0; i < len(services); i++ {
+		X[i] = -1
+	}
 
 	// Get the values of X variables.
 	for m := 0; m < len(services); m++ {
-		// The value of X[m] is in the form (X_m value).
-		// Split the line by space and get the value.
-		line := strings.Split(solverOutputLines[m+1], " ")
-		X[m] = line[1][:len(line[1])-2]
-		if X[m] == "1" {
-			sidecars = append(sidecars, services[m])
+		for i := 0; i < numSidecars; i++ {
+			// Next line is of the form (X_i_m value).
+			// Split the line to get i, m and value and save X[m] = i.
+			line := strings.Split(solverOutputLines[1+i*len(services)+m], " ")
+			xVal := line[len(line)-1][:len(line[len(line)-1])-2]
+			if xVal == "true" {
+				X[m] = i
+			}
 		}
+	}
+
+	// Create a map from service name to sidecar index.
+	sidecars := make(map[string]int)
+	for m := 0; m < len(services); m++ {
+		sidecars[services[m]] = X[m]
 	}
 
 	// Get the values of E variables.
 	for m := 0; m < len(services); m++ {
 		for j := 0; j < numPolicies; j++ {
-			// The value of I[m][j] is in the form (I_m_j value).
+			// The value of E[j][m] is in the form (E_j_m value).
 			// Split the line by space and get the value.
-			line := strings.Split(solverOutputLines[len(services)+1+m*numPolicies+j], " ")
-			iVal := line[len(line)-1][:len(line[len(line)-1])-2]
-			if iVal == "true" && X[m] == "1" {
+			line := strings.Split(solverOutputLines[1+len(services)*numSidecars+j*len(services)+m], " ")
+			eVal := line[len(line)-1][:len(line[len(line)-1])-2]
+			if eVal == "true" {
 				impls[j] = append(impls[j], services[m])
 			}
 		}

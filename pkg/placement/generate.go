@@ -29,6 +29,36 @@ const (
 	LARGE
 )
 
+// Give random functions based on how many dataplanes are supported.
+// Takes in a list of policy functions, and returns the indexes of the random functions.
+func getRandomFunction(functions []xp.PolicyFunction, samples int) []int {
+	functionsCopy := make([]xp.PolicyFunction, len(functions))
+	copy(functionsCopy, functions)
+
+	indexes := make([]int, 0)
+	for len(indexes) < samples {
+		// Get the maximum random number
+		maxNum := 0
+		for _, fn := range functionsCopy {
+			maxNum += len(fn.GetDataplanes()) * 10
+		}
+
+		// Get a random number between 0 and maxNum.
+		randNum := rand.Intn(maxNum)
+		currentNum := 0
+		for i, fn := range functionsCopy {
+			if randNum < currentNum+len(fn.GetDataplanes())*10 {
+				indexes = append(indexes, i)
+				functionsCopy = append(functionsCopy[:i], functionsCopy[i+1:]...)
+				break
+			}
+			currentNum += len(fn.GetDataplanes()) * 10
+		}
+	}
+
+	return indexes
+}
+
 // Write a Application to the given file.
 func WriteApplication(instance Application, filename string) {
 	// Open the file for writing.
@@ -84,6 +114,12 @@ func WriteApplication(instance Application, filename string) {
 
 			// Write the function mutability.
 			binary.Write(f, binary.LittleEndian, fn.GetMutability())
+
+			// Write the supported dataplanes.
+			binary.Write(f, binary.LittleEndian, uint32(len(fn.GetDataplanes())))
+			for _, d := range fn.GetDataplanes() {
+				binary.Write(f, binary.LittleEndian, d)
+			}
 		}
 	}
 }
@@ -168,7 +204,17 @@ func ReadApplication(filename string) Application {
 			var mutability bool
 			binary.Read(f, binary.LittleEndian, &mutability)
 
-			function := xp.CreatePolicyFunction(string(fn), xp.ConstraintType(constraint), mutability)
+			// Read the supported dataplanes.
+			var numDataplanes uint32
+			binary.Read(f, binary.LittleEndian, &numDataplanes)
+			dataplanes := make([]int, numDataplanes)
+			for k := uint32(0); k < numDataplanes; k++ {
+				var d int
+				binary.Read(f, binary.LittleEndian, &d)
+				dataplanes[k] = d
+			}
+
+			function := xp.CreateNewPolicyFunction(string(fn), xp.ConstraintType(constraint), dataplanes, mutability)
 			functions = append(functions, function)
 		}
 		policies[i] = xp.CreatePolicy(context, functions)
@@ -183,12 +229,12 @@ func GenerateDAG(density float64, graphSize GraphSize) (map[string][]string, []s
 	services := make([]string, 0)
 	numEdges := 0
 
-	// Generate a DAG with 4-6 tiers.
-	tiers := 3
+	// Generate a DAG with 4-10 tiers.
+	tiers := 4
 	if graphSize == MEDIUM {
-		tiers = tiers + rand.Intn(3)
+		tiers = 8
 	} else if graphSize == LARGE {
-		tiers = tiers + rand.Intn(6)
+		tiers = 12
 	}
 	for i := 0; i < tiers; i++ {
 		// Generate 5-10 services in each tier.
@@ -239,14 +285,19 @@ func GeneratePolicies(applEdges map[string][]string, numPolicies int) []xp.Polic
 		nonLeafServices = append(nonLeafServices, k)
 	}
 
-	// Define functions and constraints.
-	maxPathLength := 5
-	setHeaderFunc := xp.CreatePolicyFunction("setHeader", xp.SENDER_RECEIVER, false)
-	countFunc := xp.CreatePolicyFunction("count", xp.SENDER_RECEIVER, false)
-	setDeadlineFunc := xp.CreatePolicyFunction("setDeadline", xp.SENDER, true)
-	loadBalanceFunc := xp.CreatePolicyFunction("loadBalance", xp.SENDER, true)
+	glog.Info("Generating ", numPolicies, " policies")
 
-	functions := []xp.PolicyFunction{setHeaderFunc, countFunc, setDeadlineFunc, loadBalanceFunc}
+	// Define functions and constraints.
+	maxPathLength := 8
+	setHeaderFunc := xp.CreateNewPolicyFunction("setHeader", xp.SENDER_RECEIVER, []int{0, 1, 2, 3}, false)
+	countFunc := xp.CreateNewPolicyFunction("count", xp.SENDER_RECEIVER, []int{0, 1, 2, 3}, false)
+	setDeadlineFunc := xp.CreateNewPolicyFunction("setDeadline", xp.SENDER, []int{0, 1}, true)
+	loadBalanceFunc := xp.CreateNewPolicyFunction("loadBalance", xp.SENDER, []int{0, 1, 2}, true)
+	dropFunc := xp.CreateNewPolicyFunction("drop", xp.SENDER_RECEIVER, []int{0, 1, 2, 3}, true)
+	routeFunc := xp.CreateNewPolicyFunction("route", xp.SENDER, []int{0, 1, 2, 3}, true)
+	delayFunc := xp.CreateNewPolicyFunction("delay", xp.SENDER_RECEIVER, []int{0, 2}, true)
+
+	functions := []xp.PolicyFunction{setHeaderFunc, countFunc, setDeadlineFunc, loadBalanceFunc, dropFunc, routeFunc, delayFunc}
 
 	policies := make([]xp.Policy, 0)
 	for i := 0; i < numPolicies; i++ {
@@ -277,7 +328,7 @@ func GeneratePolicies(applEdges map[string][]string, numPolicies int) []xp.Polic
 
 		// For each service in the context, replace with * based on a probability.
 		for j := 0; j < len(context); j++ {
-			if rand.Float64() < 0.5 {
+			if rand.Float64() < 0.25 {
 				if j != 0 && context[j-1] != "*" {
 					context[j] = "*"
 				}
@@ -286,8 +337,9 @@ func GeneratePolicies(applEdges map[string][]string, numPolicies int) []xp.Polic
 
 		// Choose a random subset of functions.
 		numFunctions := 1 + rand.Intn(len(functions))
+		samples := getRandomFunction(functions, numFunctions)
 		policyFunctions := make([]xp.PolicyFunction, 0)
-		for j := 0; j < numFunctions; j++ {
+		for _, j := range samples {
 			policyFunctions = append(policyFunctions, functions[j])
 		}
 

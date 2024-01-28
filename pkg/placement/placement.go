@@ -23,7 +23,7 @@ type smtOutput struct {
 
 func worker(pi platformInfo, target int) smtOutput {
 	glog.Info("Running search for target: ", target)
-	sat, s, i := smt.OptimizeForTarget(pi.policies, pi.applGraph, pi.services, pi.hasSidecar, target)
+	sat, s, i := smt.OptimizeForTargetDeprecated(pi.policies, pi.applGraph, pi.services, pi.hasSidecar, target)
 	return smtOutput{sat, s, i}
 }
 
@@ -111,16 +111,40 @@ func GetPlacementParallel(policies []xp.Policy, applGraph map[string][]string, s
 
 // Find the optimal placement for the given policies. Requires all dataplane functions to be registered.
 // Uses the z3 solver's SMT-LIB to find the optimal placement.
-func GetPlacement(policies []xp.Policy, applGraph map[string][]string, services []string, hasSidecars []bool) ([]string, [][]string) {
+func GetPlacement(policies []xp.Policy, applGraph map[string][]string, services []string, sidecarAssignments map[string]int, sidecarCosts []int) (map[string]int, [][]string) {
 	// Generate the SMT-LIB file.
-	smt.GenerateOptimizationFile(policies, applGraph, services, hasSidecars)
+	smt.GenerateOptimizationFile(policies, applGraph, services, sidecarAssignments, sidecarCosts)
 
 	// Run the SMT solver and get the optimal placement for the given policies.
-	_, sidecars, impls := smt.RunSolver(services, len(policies))
+	_, sidecars, impls := smt.RunSolver(services, len(sidecarCosts), len(policies))
 
 	// Print the optimal placement.
 	glog.Infof("Optimal placement: %d %v", len(sidecars), sidecars)
 	glog.Infof("Optimal implementations: %v", impls)
+
+	// Compute cost benefits.
+	maxCost := 0
+	for _, c := range sidecarCosts {
+		if c > maxCost {
+			maxCost = c
+		}
+	}
+	maxCost *= len(services)
+
+	// Compute the cost of the optimal placement.
+	cost := 0
+	instancesUsed := make(map[int]int)
+	for _, s := range services {
+		sidecar := sidecars[s]
+		if sidecar == -1 {
+			continue
+		}
+
+		cost += sidecarCosts[sidecar]
+		instancesUsed[sidecar]++
+	}
+	glog.Infof("Cost of optimal placement: %d vs max cost: %d", cost, maxCost)
+	glog.Info("Instances used: ", instancesUsed)
 
 	return sidecars, impls
 }

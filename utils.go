@@ -1,5 +1,9 @@
 package xPlane
 
+import (
+	"golang.org/x/exp/slices"
+)
+
 type ConstraintType int
 
 const (
@@ -12,6 +16,7 @@ type PolicyFunction struct {
 	functionName string
 	constraint   ConstraintType
 	mutability   bool
+	dataplanes   []int
 }
 
 type Policy struct {
@@ -33,12 +38,26 @@ func (pf *PolicyFunction) GetMutability() bool {
 	return pf.mutability
 }
 
+func (pf *PolicyFunction) GetDataplanes() []int {
+	return pf.dataplanes
+}
+
 // Create a new PolicyFunction struct.
 func CreatePolicyFunction(functionName string, constraint ConstraintType, mutability bool) PolicyFunction {
 	return PolicyFunction{
 		functionName: functionName,
 		constraint:   constraint,
 		mutability:   mutability,
+	}
+}
+
+// Create a new PolicyFunction struct.
+func CreateNewPolicyFunction(functionName string, constraint ConstraintType, supportedDataplanes []int, mutability bool) PolicyFunction {
+	return PolicyFunction{
+		functionName: functionName,
+		constraint:   constraint,
+		mutability:   mutability,
+		dataplanes:   supportedDataplanes,
 	}
 }
 
@@ -57,6 +76,33 @@ func (p *Policy) SetPlacement(placement string) {
 
 func (p *Policy) GetFunctions() []PolicyFunction {
 	return p.functions
+}
+
+func (p *Policy) GetDataplanes() []int {
+	dataplanes := map[int]bool{}
+
+	// Add dataplanes of the first function.
+	for _, d := range p.functions[0].GetDataplanes() {
+		dataplanes[d] = true
+	}
+
+	// Take intersection of dataplanes of all functions.
+	for _, pf := range p.functions {
+		// For every d in dataplanes, check if it exists in pf.dataplanes.
+		for d := range dataplanes {
+			if !slices.Contains(pf.GetDataplanes(), d) {
+				delete(dataplanes, d)
+			}
+		}
+	}
+
+	// Whatever left, supports all functions.
+	var dataplanesArray []int
+	for d := range dataplanes {
+		dataplanesArray = append(dataplanesArray, d)
+	}
+
+	return dataplanesArray
 }
 
 func (p *Policy) ExistsMutableFunction() bool {

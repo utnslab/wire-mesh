@@ -2,7 +2,6 @@ package placement
 
 import (
 	"flag"
-	"math/rand"
 	"strings"
 	"testing"
 	"time"
@@ -24,22 +23,23 @@ func TestPlacement(t *testing.T) {
 
 	// Create a dummy list of policies.
 	functions_p1 := []xp.PolicyFunction{
-		xp.CreatePolicyFunction("set_header", xp.SENDER, true),
-		xp.CreatePolicyFunction("get_header", xp.SENDER_RECEIVER, false)}
+		xp.CreateNewPolicyFunction("set_header", xp.SENDER, []int{0}, true),
+		xp.CreateNewPolicyFunction("get_header", xp.SENDER_RECEIVER, []int{0, 1}, false)}
 
 	functions_p2 := []xp.PolicyFunction{
-		xp.CreatePolicyFunction("set_header", xp.SENDER, true)}
+		xp.CreateNewPolicyFunction("set_header", xp.SENDER_RECEIVER, []int{2}, true)}
 
 	policies := []xp.Policy{
 		xp.CreatePolicy([]string{"A", "B"}, functions_p1),
 		xp.CreatePolicy([]string{"A", "C"}, functions_p2)}
 
-	hasSidecar := make([]bool, len(services))
-	for i := range hasSidecar {
-		hasSidecar[i] = false
-	}
+	// Define sidecar costs array.
+	sidecarCosts := []int{0, 1, 2}
 
-	GetPlacement(policies, applGraph, services, hasSidecar)
+	// Create an empty map for the initial placement.
+	sidecarAssignment := make(map[string]int)
+
+	GetPlacement(policies, applGraph, services, sidecarAssignment, sidecarCosts)
 }
 
 var fileName = flag.String("file", "placement_test", "File to read the DAG from")
@@ -69,7 +69,12 @@ func TestComplete(t *testing.T) {
 		applEdges, services := GenerateDAG(*density, graphSize)
 
 		// Generate policies.
-		numPolicies := len(applEdges) + rand.Intn(10)
+		numPolicies := 2 * len(applEdges)
+		if *testSize == "medium" {
+			numPolicies = 5 * len(applEdges)
+		} else if *testSize == "large" {
+			numPolicies = 10 * len(applEdges)
+		}
 		policies := GeneratePolicies(applEdges, numPolicies)
 
 		// Write the policies to a file.
@@ -114,7 +119,10 @@ func TestComplete(t *testing.T) {
 		if *fast {
 			GetPlacementParallel(policies, applEdges, services, hasSidecar, *threads)
 		} else {
-			GetPlacement(policies, applEdges, services, hasSidecar)
+			// Using 4 sidecars.
+			sidecarCosts := []int{10, 8, 4, 2}
+			sidecarAssignment := make(map[string]int)
+			GetPlacement(policies, applEdges, services, sidecarAssignment, sidecarCosts)
 		}
 	}
 
@@ -147,22 +155,15 @@ func TestAdditionalPolicy(t *testing.T) {
 	// 	glog.Info(p)
 	// }
 
-	hasSidecar := make([]bool, len(services))
-	for i := range hasSidecar {
-		hasSidecar[i] = false
-	}
+	sidecarAssignment := make(map[string]int)
+	sidecarCosts := []int{10, 8, 4, 2}
 
 	// Get the optimal placement for the given policies.
-	sidecars, _ := GetPlacement(policies, applEdges, services, hasSidecar)
+	updatedAssignments, _ := GetPlacement(policies, applEdges, services, sidecarAssignment, sidecarCosts)
 
-	// Update hasSidecar.
-	for _, s := range sidecars {
-		// Find the index of s in services.
-		for i, svc := range services {
-			if s == svc {
-				hasSidecar[i] = true
-			}
-		}
+	// Update the sidecar assignment.
+	for k, v := range updatedAssignments {
+		sidecarAssignment[k] = v
 	}
 
 	// Generate more policies.
@@ -173,7 +174,7 @@ func TestAdditionalPolicy(t *testing.T) {
 
 		// Get the optimal placement for the given policies.
 		start := time.Now()
-		GetPlacement(policies, applEdges, services, hasSidecar)
+		GetPlacement(policies, applEdges, services, sidecarAssignment, sidecarCosts)
 		elapsed := time.Since(start)
 
 		times[i] = float64(elapsed.Milliseconds())
