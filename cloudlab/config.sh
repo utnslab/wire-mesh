@@ -3,6 +3,13 @@
 # 1: Name of the experiment
 # 2: Start node
 # 3: End node
+# 4: Whether to use Cilium
+
+# Check if there are atleast 4 arguments
+if [[ $# -lt 4 ]]; then
+  echo "Usage: $0 <experiment_name> <start_node> <end_node> <use_cilium>"
+  exit 1
+fi
 
 HOSTS=`./cloudlab/nodes.sh $1 $2 $3 --all`
 
@@ -83,7 +90,11 @@ CONTROL_NODE=$(echo $HOSTS | head -1 | awk '{print $1}')
 
 # Setup control node
 echo "Building on control node ${CONTROL_NODE}"
-ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "cd \$HOME; ./scripts/install_docker.sh --init --control > install_docker.log 2>&1"
+if [[ $4 -eq 1 ]]; then
+  ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "cd \$HOME; ./scripts/install_docker.sh --init --control > install_docker.log 2>&1"
+else
+  ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "cd \$HOME; ./scripts/install_docker.sh --init --control --cni > install_docker.log 2>&1"
+fi
 
 # Get the join command
 scp -rq -o StrictHostKeyChecking=no ${CONTROL_NODE}:~/command.txt command.txt >/dev/null 2>&1
@@ -105,6 +116,11 @@ wait
 
 rm command.txt
 rm admin.conf
+
+# Setup Cilium on the control node.
+if [[ $4 -eq 1 ]]; then
+  ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "cd \$HOME; ./scripts/setup_cilium.sh > setup_cilium.log 2>&1"
+fi
 
 # After joining the nodes, make a rollout restart of coredns on control node.
 ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "kubectl -n kube-system rollout restart deployment coredns"

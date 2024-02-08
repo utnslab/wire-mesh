@@ -31,13 +31,24 @@ IP_ADDR=(10.10.1.1 10.10.1.2 10.10.1.3 10.10.1.4)
 
 # Need to set a flag if MESH is istio and APPL is boutique or bookinfo
 INGRESS=0
-if [[ "$MESH" == "istio" ]] && [[ "$APPL" == "boutique" || "$APPL" == "bookinfo" ]]; then
+if [[ "$MESH" == "istio" ]] && [[ "$APPL" == "bookinfo" ]]; then
   INGRESS=1
 fi
 
-# If INGRESS is set, then get the INGRESS_PORT from the control node.
+# Also need to set a flag if MESH is cilium
+CILIUM=0
+if [[ "$MESH" == "cilium" ]]; then
+  CILIUM=1
+fi
+
+# If INGRESS/CILIUM is set, then get the INGRESS_PORT from the control node.
+INGRESS_PORT=0
 if [[ $INGRESS -eq 1 ]]; then
   INGRESS_PORT=$(ssh -o StrictHostKeyChecking=no ${HOSTS[0]} "kubectl get svc istio-ingressgateway -n istio-system -o jsonpath='{.spec.ports[?(@.name==\"http2\")].nodePort}'")
+  echo "Ingress external port is $INGRESS_PORT"
+fi
+if [[ $CILIUM -eq 1 ]]; then
+  INGRESS_PORT=$(ssh -o StrictHostKeyChecking=no ${HOSTS[0]} "kubectl get svc cilium-ingress-basic-ingress -o jsonpath='{.spec.ports[?(@.name==\"http\")].nodePort}'")
   echo "Ingress external port is $INGRESS_PORT"
 fi
 
@@ -58,8 +69,8 @@ done
 # Start run_query client on the client node
 echo "Starting run_query client on ${CLIENT_HOST} ..."
 
-# If INGRESS is set, then use the INGRESS_PORT
-if [[ $INGRESS -eq 1 ]]; then
+# If INGRESS_PORT is non-zero, then pass it to run_query.sh
+if [[ $INGRESS_PORT -ne 0 ]]; then
   ssh -o StrictHostKeyChecking=no ${CLIENT_HOST} "tmux new-session -d -s run_query \"
     pushd \$HOME/scripts/deployment/$APPL &&
     rm -f \$HOME/out/time_${APPL}_${MESH}.run &&
@@ -74,10 +85,10 @@ else
 fi
 
 # Wait for the stats to be completed.
-sleep 2m
+sleep 3m
 
 # Wait for user to press enter
-read -p "Press enter to stop the experiment and get stats ..."
+# read -p "Press enter to stop the experiment and get stats ..."
 
 # Get the stats from each of the nodes
 mkdir -p $4/${APPL}-${MESH}-${RATE}-$(date +%d.%m-%H:%M)

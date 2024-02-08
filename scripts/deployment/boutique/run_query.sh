@@ -10,16 +10,17 @@
 
 showHelp() {
 cat << EOF  
-Usage: <script_name> -m <mesh-name> [-isc] [-I <ip>]
-Attach bpf programs for a specific service.
+Usage: <script_name> -m <mesh-name> [-isc] [-I <ip>] [-r <rate>]
+Run query for the Online Boutique benchmark with different service mesh
 
 -h, -help,      --help        Display help
--m, -mesh,      --mesh        Service mesh name to put in the output file
+-m, -mesh,      --mesh        Service mesh name to put in the output file (istio/linkerd/nginx/plain/cilium)
 -i, -init,      --init        Whether first time install
 -s, -server,    --server      Whether to start the stats server
 -c, -client,    --client      Whether to start the stats client
 -I, -ip,        --ip          IP address of the stats server
--P, -port,      --port        Port of the stats server
+-p, -port,      --port        Port of the application
+-r, -rate,      --rate        Rate of requests per second
 
 EOF
 }
@@ -29,9 +30,10 @@ INIT=0
 SERVER=0
 CLIENT=0
 IP=""
-PORT="32000"
+RATE=500
+PORT=32000
 
-options=$(getopt -l "help,mesh:,init,server,client,ip:,port:" -o "hm:iscI:P:" -a -- "$@")
+options=$(getopt -l "help,mesh:,init,server,client,ip:,port:,rate:" -o "hm:iscI:p:r:" -a -- "$@")
 
 eval set -- "$options"
 
@@ -58,9 +60,13 @@ while true; do
       shift
       IP=$1
       ;;
-  -P|--port)
+  -p|--port)
       shift
       PORT=$1
+      ;;
+  -r|--rate)
+      shift
+      RATE=$1
       ;;
   --)
       shift
@@ -74,20 +80,12 @@ done
 if [[ $INIT -eq 1 ]]; then
   # Init
   pushd $TESTBED/scripts
-  if [[ $MESH == "wire" ]]; then
-    kubectl apply -f deployment/boutique/wire-manifests.yaml
-  elif [[ $MESH == "wire-partial" ]]; then
-    ./deployment/boutique/wire_init.sh
-  else
-    kubectl apply -f deployment/boutique/kubernetes-manifests.yaml
-  fi
-  
-  if [[ $MESH == "istio" ]]; then
-    # Use the Istio Ingress Gateway
-    kubectl apply -f deployment/boutique/istio-manifests.yaml
-  else
-    # Use the NGINX Ingress Controller
-    kubectl apply -f deployment/boutique/boutique-ingress.yaml
+  kubectl apply -f deployment/boutique/kubernetes-manifests.yaml
+
+  if [[ $MESH == "cilium" ]]; then
+    # Add Cilium ingress - delete existing and then re-apply.
+    kubectl delete -f deployment/boutique/yaml/cilium-ingress.yaml
+    kubectl apply -f deployment/boutique/yaml/cilium-ingress.yaml
   fi
   popd
 
@@ -96,13 +94,8 @@ if [[ $INIT -eq 1 ]]; then
 fi
 
 if [[ $SERVER -eq 1 ]]; then
-  echo "Starting the stats server with IP=$IP"
-  if [[ $MESH == "istio" ]]; then
-    INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}')
-    echo "Ingress external port is $INGRESS_PORT"
-  fi
-
   # Start the stats server
+  echo "Starting the stats server with IP=$IP"
   sudo python3 $TESTBED/scripts/utils/stats_server.py $IP > $TESTBED/logs/python.log 2>&1 &
   wait
 fi
@@ -110,13 +103,8 @@ fi
 if [[ $CLIENT -eq 1 ]]; then
   GATEWAY_URL="$IP:$PORT"
   if [[ $SERVER -eq 1 ]]; then
-    if [[ $MESH == "istio" ]]; then
-      INGRESS_HOST="$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.clusterIP}')"
-      INGRESS_PORT="80"
-    else
-      INGRESS_HOST=$(kubectl get svc frontend -o jsonpath='{.spec.clusterIP}')
-      INGRESS_PORT=$(kubectl get svc frontend -o jsonpath='{.spec.ports[?(@.protocol=="TCP")].port}')
-    fi
+    INGRESS_HOST=$(kubectl get svc frontend -o jsonpath='{.spec.clusterIP}')
+    INGRESS_PORT=$(kubectl get svc frontend -o jsonpath='{.spec.ports[?(@.protocol=="TCP")].port}')
 
     GATEWAY_URL=$INGRESS_HOST:$INGRESS_PORT
   fi
@@ -134,9 +122,11 @@ if [[ $CLIENT -eq 1 ]]; then
   # Start the stats client
   sudo python3 $TESTBED/scripts/utils/stats_client.py $TESTBED/scripts/utils/config boutique_$MESH > $TESTBED/logs/python.log 2>&1 &
   
+  sleep 30
+
   # Run queries to log timings
   pushd $TESTBED/DeathStarBench/wrk2
-  ../wrk2/wrk -D exp -t 20 -c 20 -d 60 -L http://$GATEWAY_URL -R 1000 >> $TESTBED/out/time_boutique_$MESH.run 2>&1
+  ../wrk2/wrk -D exp -t 20 -c 20 -d 60 -L http://$GATEWAY_URL -R $RATE >> $TESTBED/out/time_boutique_${RATE}_${MESH}.run 2>&1
   popd
 
   # Kill CPU and Memory measurement

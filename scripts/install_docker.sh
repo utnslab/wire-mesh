@@ -8,15 +8,17 @@ Install docker, kubernetes and helm.
 
 -h, -help,      --help        Display help
 -i, -init,      --init        Whether installing docker for the first time
+-n, -cni,       --cni         Whether to setup the default CNI (false for cilium)
 -c, -control,   --control     Is the node a control node
 
 EOF
 }
 
 INIT=0
+CNI=0
 IS_CONTROL_NODE=0
 
-options=$(getopt -l "help,init,control" -o "hic" -a -- "$@")
+options=$(getopt -l "help,init,control,cni" -o "hicn" -a -- "$@")
 
 eval set -- "$options"
 
@@ -28,6 +30,9 @@ while true; do
       ;;
   -i|--init)
       INIT=1
+      ;;
+  -n|--cni)
+      CNI=1
       ;;
   -c|--control)
       IS_CONTROL_NODE=1
@@ -121,8 +126,11 @@ else
   mkdir -p $HOME/.kube
   sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
   sudo chown $(id -u):$(id -g) $HOME/.kube/config
-  
-  sudo kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+  if [[ $CNI -eq 1 ]]; then
+    # Install CNI
+    sudo kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+  fi
   
   sleep 10
   

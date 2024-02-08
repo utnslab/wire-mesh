@@ -19,6 +19,7 @@ Run query for the Social Network benchmark with different service meshes
 -s, -server,    --server      Whether to start the stats server
 -c, -client,    --client      Whether to start the stats client
 -I, -ip,        --ip          IP address of the stats server
+-p, -port,      --port        Port of the application
 -r, -rate,      --rate        Rate of requests per second
 
 EOF
@@ -30,8 +31,9 @@ SERVER=0
 CLIENT=0
 IP=""
 RATE=2000
+PORT=32000
 
-options=$(getopt -l "help,mesh:,init,server,client,ip:" -o "hm:iscI:r:" -a -- "$@")
+options=$(getopt -l "help,mesh:,init,server,client,ip:,port:" -o "hm:iscI:r:p:" -a -- "$@")
 
 eval set -- "$options"
 
@@ -57,6 +59,10 @@ while true; do
   -I|--ip)
       shift
       IP=$1
+      ;;
+  -p|--port)
+      shift
+      PORT=$1
       ;;
   -r|--rate)
       shift
@@ -98,7 +104,7 @@ if [[ $SERVER -eq 1 ]]; then
 fi
 
 if [[ $CLIENT -eq 1 ]]; then
-  GATEWAY_URL="$IP:32000"
+  GATEWAY_URL="$IP:$PORT"
   if [[ $SERVER -eq 1 ]]; then
     echo "Setting it to kubectl service endpoint"
     INGRESS_HOST=$(kubectl get svc nginx-thrift -o jsonpath='{.spec.clusterIP}')

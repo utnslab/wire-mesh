@@ -13,11 +13,12 @@ Usage: <script_name> -m <mesh-name> [-isc] [-I <ip>] [-r <rate>]
 Run query for the Hotel Reservation benchmark with different service mesh
 
 -h, -help,      --help        Display help
--m, -mesh,      --mesh        Service mesh name to put in the output file
+-m, -mesh,      --mesh        Service mesh name to put in the logs file (istio/linkerd/nginx/plain/cilium)
 -i, -init,      --init        Whether first time install
 -s, -server,    --server      Whether to start the stats server
 -c, -client,    --client      Whether to start the stats client
 -I, -ip,        --ip          IP address of the stats server
+-p, -port,      --port        Port of the application
 -r, -rate,      --rate        Rate of requests per second
 
 EOF
@@ -29,8 +30,9 @@ SERVER=0
 CLIENT=0
 IP=""
 RATE=2000
+PORT=32000
 
-options=$(getopt -l "help,mesh:,init,server,client,ip:" -o "hm:iscI:r:" -a -- "$@")
+options=$(getopt -l "help,mesh:,init,server,client,ip:,port:,rate:" -o "hm:iscI:p:r:" -a -- "$@")
 
 eval set -- "$options"
 
@@ -56,6 +58,10 @@ while true; do
   -I|--ip)
       shift
       IP=$1
+      ;;
+  -p|--port)
+      shift
+      PORT=$1
       ;;
   -r|--rate)
       shift
@@ -87,15 +93,17 @@ if [[ $INIT -eq 1 ]]; then
     popd
   fi
 
-  if [[ $MESH == "wire" ]]; then
-    pushd scripts/deployment/reservation
-    ./wire_init.sh
-    popd
-  else
-    pushd DeathStarBench/hotelReservation
-    kubectl apply -Rf kubernetes/
+  if [[ $MESH == "cilium" ]]; then
+    # Add cilium ingress - delete existing and then re-apply.
+    pushd $TESTBED/scripts/deployment/reservation
+    kubectl delete -f cilium-ingress.yaml
+    kubectl apply -f cilium-ingress.yaml
     popd
   fi
+
+  pushd DeathStarBench/hotelReservation
+  kubectl apply -Rf kubernetes/
+  popd
 
   # Wait for the pods to get running
   sleep 1m
@@ -109,7 +117,7 @@ if [[ $SERVER -eq 1 ]]; then
 fi
 
 if [[ $CLIENT -eq 1 ]]; then
-  GATEWAY_URL="$IP:32000"
+  GATEWAY_URL="$IP:$PORT"
   if [[ $SERVER -eq 1 ]]; then
     echo "Setting it to kubectl service endpoint"
     INGRESS_HOST=$(kubectl get svc frontend -o jsonpath='{.spec.clusterIP}')

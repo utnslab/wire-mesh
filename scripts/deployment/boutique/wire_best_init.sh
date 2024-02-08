@@ -5,7 +5,7 @@
 
 # First start all kubernetes services
 pushd $TESTBED/scripts
-kubectl apply -f deployment/boutique/kubernetes-manifests.yaml
+kubectl apply -f deployment/boutique/yaml/wire-best-kube.yaml
 popd
 
 # Use wire with istio injection only where needed
@@ -20,7 +20,7 @@ kubectl -n istio-system get configmap istio -o=jsonpath='{.data.mesh}' > mesh-co
     --injectConfigFile inject-config.yaml \
     --meshConfigFile mesh-config.yaml \
     --valuesFile inject-values.yaml \
-    --filename $TESTBED/scripts/deployment/boutique/wire-bestcase.yaml \
+    --filename $TESTBED/scripts/deployment/boutique/yaml/wire-best-istio.yaml \
     | kubectl apply -f -
 
 popd

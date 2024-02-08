@@ -16,3 +16,10 @@ build/
 
 # Config files
 eval_config.json
+
+# Local files
+*.local
+
+# Pycache
+__pycache__/
+**.pyc

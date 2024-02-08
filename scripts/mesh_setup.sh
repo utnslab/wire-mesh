@@ -65,10 +65,10 @@ if [[ $MESH == "istio" ]]; then
   # Install Istio
   curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.16.1 sh -
   pushd $TESTBED/istio-1.16.1
-  ./bin/istioctl install --set profile=demo -y
+  ./bin/istioctl install --set profile=default -y
   popd
 
-  kubectl label namespace default istio-injection=enabled
+  kubectl label namespace default istio-injection=enabled --overwrite
 elif [[ $MESH == "linkerd" ]]; then
   # Install Linkerd
   curl --proto '=https' -sSfL https://run.linkerd.io/install | sh  
@@ -93,6 +93,30 @@ elif [[ $MESH == "nginx" ]]; then
   sleep 30
 
   rm nginx-meshctl_1.7.0_linux_amd64.tar.gz
+elif [[ $MESH == "cilium" ]]; then
+  cilium install --version 1.14.6 \
+                 --set kubeProxyReplacement=true \
+                 --set envoyConfig.enabled=true \
+                 --set loadBalancer.l7.backend=envoy
+  cilium status --wait
+elif [[ $MESH == "wire"* ]]; then
+  curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.16.1 sh -
+  pushd $TESTBED/istio-1.16.1
+  ./bin/istioctl install --set profile=default -y
+  popd
+  kubectl label namespace default istio-injection=disabled --overwrite
+
+  # Wait for control plane to get running
+  sleep 30
+
+  # curl --proto '=https' -sSfL https://run.linkerd.io/install | sh
+  # pushd $TESTBED/.linkerd2
+  # ./bin/linkerd install --crds | kubectl apply -f -
+  # ./bin/linkerd install | kubectl apply -f -
+  # popd
+  
+  # # Wait for control plane to get running
+  # sleep 30
 fi
 
 popd

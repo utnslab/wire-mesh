@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: basic-ingress
+  namespace: default
+  labels:
+    app.kubernetes.io/name: cilium-ingress
+spec:
+  ingressClassName: cilium
+  rules:
+  - http:
+      paths:
+      - backend:
+          service:
+            name: frontend
+            port:
+              number: 5000
+        path: /
+        pathType: Prefix
