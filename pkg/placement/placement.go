@@ -119,8 +119,14 @@ func GetPlacement(policies []xp.Policy, applGraph map[string][]string, services 
 	_, sidecars, impls := smt.RunSolver(services, len(sidecarCosts), len(policies))
 
 	// Print the optimal placement.
-	glog.Infof("Optimal placement: %d %v", len(sidecars), sidecars)
-	glog.Infof("Optimal implementations: %v", impls)
+	sidecarsMap := make(map[string]int)
+	for i, s := range sidecars {
+		if s != -1 {
+			sidecarsMap[i] = s
+		}
+	}
+	// glog.Infof("Optimal placement: %d %v", len(sidecarsMap), sidecarsMap)
+	// glog.Infof("Optimal implementations: %v", impls)
 
 	// Compute cost benefits.
 	maxCost := 0

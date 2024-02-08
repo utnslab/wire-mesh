@@ -42,6 +42,118 @@ func TestPlacement(t *testing.T) {
 	GetPlacement(policies, applGraph, services, sidecarAssignment, sidecarCosts)
 }
 
+func TestSocialNetworkPlacement(t *testing.T) {
+	flag.Parse()
+
+	// Create a dummy application graph.
+	applGraph := make(map[string][]string)
+	applGraph["nginx"] = []string{"social-graph", "user", "compose-post", "user-timeline", "home-timeline"}
+	applGraph["social-graph"] = []string{"user", "graph-mongo", "graph-redis"}
+	applGraph["user"] = []string{"user-memcached", "user-mongo"}
+	applGraph["user-timeline"] = []string{"post-storage", "user-redis", "user-mongo"}
+	applGraph["compose-post"] = []string{"home-timeline", "media", "text", "post-storage", "user-timeline", "unique-id", "user"}
+	applGraph["home-timeline"] = []string{"post-storage", "social-graph"}
+	applGraph["text"] = []string{"url", "user-mention"}
+	applGraph["url"] = []string{"url-memcached", "url-mongo"}
+	applGraph["user-mention"] = []string{"user-mention-mongo", "user-mention-memcached"}
+	applGraph["post-storage"] = []string{"post-storage-mongo", "post-storage-redis"}
+
+	// Create a dummy list of services.
+	servicesMap := make(map[string]int)
+	for k := range applGraph {
+		servicesMap[k] = 1
+		for _, v := range applGraph[k] {
+			servicesMap[v] = 1
+		}
+	}
+
+	services := make([]string, len(servicesMap))
+	i := 0
+	for k := range servicesMap {
+		services[i] = k
+		i++
+	}
+	print(len(services), services)
+
+	// Create a dummy list of policies.
+	functions_p1 := []xp.PolicyFunction{
+		xp.CreateNewPolicyFunction("set_header", xp.SENDER, []int{0}, true)}
+
+	policies := make([]xp.Policy, 0)
+	for k, arr := range applGraph {
+		for _, v := range arr {
+			// If v contains "mongo", "memcached", or "redis", then continue.
+			// if strings.Contains(v, "mongo") || strings.Contains(v, "memcached") || strings.Contains(v, "redis") {
+			// 	continue
+			// }
+			policies = append(policies, xp.CreatePolicy([]string{k, v}, functions_p1))
+		}
+	}
+
+	// Define sidecar costs array.
+	sidecarCosts := []int{100}
+
+	// Create an empty map for the initial placement.
+	sidecarAssignment := make(map[string]int)
+
+	GetPlacement(policies, applGraph, services, sidecarAssignment, sidecarCosts)
+}
+
+func TestHotelReservationPlacement(t *testing.T) {
+	flag.Parse()
+
+	// Create a dummy application graph.
+	applGraph := make(map[string][]string)
+	applGraph["frontend"] = []string{"recommend", "user", "profile", "search", "reserve"}
+	applGraph["search"] = []string{"geo", "rate"}
+	applGraph["recommend"] = []string{"recommend-mongo"}
+	applGraph["reserve"] = []string{"reserve-mongo", "reserve-memc"}
+	applGraph["user"] = []string{"user-mongo"}
+	applGraph["rate"] = []string{"rate-mongo", "rate-memc"}
+	applGraph["geo"] = []string{"geo=mongo"}
+	applGraph["profile"] = []string{"profile-mongo", "profile-memc"}
+
+	// Create a dummy list of services.
+	servicesMap := make(map[string]int)
+	for k := range applGraph {
+		servicesMap[k] = 1
+		for _, v := range applGraph[k] {
+			servicesMap[v] = 1
+		}
+	}
+
+	services := make([]string, len(servicesMap))
+	i := 0
+	for k := range servicesMap {
+		services[i] = k
+		i++
+	}
+	print(len(services), services)
+
+	// Create a dummy list of policies.
+	functions_p1 := []xp.PolicyFunction{
+		xp.CreateNewPolicyFunction("set_header", xp.SENDER_RECEIVER, []int{0}, true)}
+
+	policies := make([]xp.Policy, 0)
+	for k, arr := range applGraph {
+		for _, v := range arr {
+			// If v contains "mongo", "memcached", or "redis", then continue.
+			// if strings.Contains(v, "mongo") || strings.Contains(v, "memc") || strings.Contains(v, "redis") {
+			// 	continue
+			// }
+			policies = append(policies, xp.CreatePolicy([]string{k, v}, functions_p1))
+		}
+	}
+
+	// Define sidecar costs array.
+	sidecarCosts := []int{100}
+
+	// Create an empty map for the initial placement.
+	sidecarAssignment := make(map[string]int)
+
+	GetPlacement(policies, applGraph, services, sidecarAssignment, sidecarCosts)
+}
+
 var fileName = flag.String("file", "placement_test", "File to read the DAG from")
 var generate = flag.Bool("generate", false, "Generate a random DAG")
 var fast = flag.Bool("fast", false, "Use the fast solver")
@@ -71,9 +183,9 @@ func TestComplete(t *testing.T) {
 		// Generate policies.
 		numPolicies := 2 * len(applEdges)
 		if *testSize == "medium" {
-			numPolicies = 5 * len(applEdges)
+			numPolicies = 3 * len(applEdges)
 		} else if *testSize == "large" {
-			numPolicies = 10 * len(applEdges)
+			numPolicies = 6 * len(applEdges)
 		}
 		policies := GeneratePolicies(applEdges, numPolicies)
 

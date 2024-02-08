@@ -29,30 +29,20 @@ const (
 	LARGE
 )
 
-// Give random functions based on how many dataplanes are supported.
-// Takes in a list of policy functions, and returns the indexes of the random functions.
-func getRandomFunction(functions []xp.PolicyFunction, samples int) []int {
-	functionsCopy := make([]xp.PolicyFunction, len(functions))
-	copy(functionsCopy, functions)
-
+// Give random functions based on their probabilities.
+func getRandomFunction(functions []xp.PolicyFunction, probabilities []float64) []int {
 	indexes := make([]int, 0)
-	for len(indexes) < samples {
-		// Get the maximum random number
-		maxNum := 0
-		for _, fn := range functionsCopy {
-			maxNum += len(fn.GetDataplanes()) * 10
-		}
 
-		// Get a random number between 0 and maxNum.
-		randNum := rand.Intn(maxNum)
-		currentNum := 0
-		for i, fn := range functionsCopy {
-			if randNum < currentNum+len(fn.GetDataplanes())*10 {
-				indexes = append(indexes, i)
-				functionsCopy = append(functionsCopy[:i], functionsCopy[i+1:]...)
-				break
+	// Repeat until indexes is non-empty.
+	for len(indexes) == 0 {
+		for p, prob := range probabilities {
+			// Get a random number between 0 and 1.
+			randNum := rand.Float64()
+
+			// If randNum is less than the probability of the func_index function, choose the func_index function.
+			if randNum < prob {
+				indexes = append(indexes, p)
 			}
-			currentNum += len(fn.GetDataplanes()) * 10
 		}
 	}
 
@@ -118,7 +108,7 @@ func WriteApplication(instance Application, filename string) {
 			// Write the supported dataplanes.
 			binary.Write(f, binary.LittleEndian, uint32(len(fn.GetDataplanes())))
 			for _, d := range fn.GetDataplanes() {
-				binary.Write(f, binary.LittleEndian, d)
+				binary.Write(f, binary.LittleEndian, uint32(d))
 			}
 		}
 	}
@@ -209,9 +199,9 @@ func ReadApplication(filename string) Application {
 			binary.Read(f, binary.LittleEndian, &numDataplanes)
 			dataplanes := make([]int, numDataplanes)
 			for k := uint32(0); k < numDataplanes; k++ {
-				var d int
+				var d uint32
 				binary.Read(f, binary.LittleEndian, &d)
-				dataplanes[k] = d
+				dataplanes[k] = int(d)
 			}
 
 			function := xp.CreateNewPolicyFunction(string(fn), xp.ConstraintType(constraint), dataplanes, mutability)
@@ -234,7 +224,7 @@ func GenerateDAG(density float64, graphSize GraphSize) (map[string][]string, []s
 	if graphSize == MEDIUM {
 		tiers = 8
 	} else if graphSize == LARGE {
-		tiers = 12
+		tiers = 16
 	}
 	for i := 0; i < tiers; i++ {
 		// Generate 5-10 services in each tier.
@@ -242,7 +232,7 @@ func GenerateDAG(density float64, graphSize GraphSize) (map[string][]string, []s
 		if graphSize == MEDIUM {
 			new_services = new_services + rand.Intn(5)
 		} else if graphSize == LARGE {
-			new_services = 2*new_services + rand.Intn(5)
+			new_services = 2*new_services + rand.Intn(10)
 		}
 
 		// For each new service, choose a random number of existing services to connect to.
@@ -274,6 +264,7 @@ func GenerateDAG(density float64, graphSize GraphSize) (map[string][]string, []s
 		}
 	}
 	glog.Info("Using a DAG with ", len(services), " services and ", numEdges, " edges")
+	glog.Info("Number of non-leaf services: ", len(applEdges))
 
 	return applEdges, services
 }
@@ -298,6 +289,12 @@ func GeneratePolicies(applEdges map[string][]string, numPolicies int) []xp.Polic
 	delayFunc := xp.CreateNewPolicyFunction("delay", xp.SENDER_RECEIVER, []int{0, 2}, true)
 
 	functions := []xp.PolicyFunction{setHeaderFunc, countFunc, setDeadlineFunc, loadBalanceFunc, dropFunc, routeFunc, delayFunc}
+	probabilities := []float64{0.3, 0.3, 0.1, 0.5, 0.8, 0.3, 0.1}
+
+	counts := make([]int, len(functions))
+	for i := 0; i < len(functions); i++ {
+		counts[i] = 0
+	}
 
 	policies := make([]xp.Policy, 0)
 	for i := 0; i < numPolicies; i++ {
@@ -335,17 +332,24 @@ func GeneratePolicies(applEdges map[string][]string, numPolicies int) []xp.Polic
 			}
 		}
 
-		// Choose a random subset of functions.
-		numFunctions := 1 + rand.Intn(len(functions))
-		samples := getRandomFunction(functions, numFunctions)
+		// Choose a random subset of functions based on the probabilities.
+		samples := getRandomFunction(functions, probabilities)
 		policyFunctions := make([]xp.PolicyFunction, 0)
 		for _, j := range samples {
+			counts[j] += 1
 			policyFunctions = append(policyFunctions, functions[j])
 		}
 
 		// Create the policy.
 		policies = append(policies, xp.CreatePolicy(context, policyFunctions))
 	}
+
+	// Calculate the probability of each function.
+	counts_float := make([]float64, len(counts))
+	for i := 0; i < len(counts); i++ {
+		counts_float[i] = float64(counts[i]) / float64(numPolicies)
+	}
+	glog.Info("Function probabilities: ", counts_float)
 
 	return policies
 }

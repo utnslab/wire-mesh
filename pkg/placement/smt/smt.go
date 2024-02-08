@@ -179,8 +179,10 @@ func backwardPolicyContext(targetNode string, applEdges map[string][]string) [][
 	return contextList
 }
 
-// ExpandPolicyContext expands the policy context to get all possible request contexts.
-func ExpandPolicyContext(policyContext []string, applEdges map[string][]string, fullExpand bool) [][]string {
+// ExpandPolicyContextDeprecated expands the policy context to get all possible request contexts.
+//
+// Deprecated: Do not use this function. The expansion of policy contexts is not needed anymore.
+func ExpandPolicyContextDeprecated(policyContext []string, applEdges map[string][]string, fullExpand bool) [][]string {
 	if policyContext[0] != "*" {
 		contextList := forwardPolicyContext(policyContext, applEdges, fullExpand)
 		// glog.Info("Expanded policy context: ", policyContext, " to ", contextList)
@@ -209,7 +211,8 @@ func ExpandPolicyContext(policyContext []string, applEdges map[string][]string, 
 // list declaring whether a service already has a sidecar and a target (number of changes).
 // Returns a boolean indicating whether the optimization was successful, a list of services
 // where the sidecar should be placed, and a map of which sidecars implement which policies.
-// @Deprecated
+//
+// Deprecated: Do not use this function. Use GenerateOptimizationFile and RunSolver instead.
 func OptimizeForTargetDeprecated(policies []xPlane.Policy, applEdges map[string][]string, services []string, hasSidecar []bool, target int) (bool, []string, [][]string) {
 	// contextToPolicyMap maps request contexts (as string) to a list.
 	// The list stores the indexes to the policies in the policies array.
@@ -220,7 +223,7 @@ func OptimizeForTargetDeprecated(policies []xPlane.Policy, applEdges map[string]
 
 	// Iterate through all policies, get all request contexts.
 	for i, p := range policies {
-		reqContexts := ExpandPolicyContext(p.GetContext(), applEdges, false)
+		reqContexts := ExpandPolicyContextDeprecated(p.GetContext(), applEdges, false)
 
 		for _, rc := range reqContexts {
 			contextStr := strings.Join(rc, ",")
@@ -470,37 +473,13 @@ func OptimizeForTargetDeprecated(policies []xPlane.Policy, applEdges map[string]
 //
 // It generates the z3 constraints and the objective function, which can then be used by a z3 solver.
 func GenerateOptimizationFile(policies []xPlane.Policy, applEdges map[string][]string, services []string, sidecarAssignment map[string]int, sidecarCost []int) {
-	// contextToPolicyMap maps request contexts (as string) to a list.
-	// The list stores the indexes to the policies in the policies array.
-	contextToPolicyMap := make(map[string][]int)
-
 	// Service map is needed to map service names to their index in the z3 variables.
 	svcMap := getSvcMapFromList(services)
-
-	// Iterate through all policies, get all request contexts.
-	for i, p := range policies {
-		reqContexts := ExpandPolicyContext(p.GetContext(), applEdges, false)
-
-		for _, rc := range reqContexts {
-			contextStr := strings.Join(rc, ",")
-			contextToPolicyMap[contextStr] = append(contextToPolicyMap[contextStr], i)
-		}
-	}
-
-	glog.Info("All policies expanded")
 
 	// Useful variables.
 	numPolicies := len(policies)
 	numServices := len(svcMap)
 	numDataplanes := len(sidecarCost)
-
-	// Get all keys from the map.
-	allContexts := make([]string, len(contextToPolicyMap))
-	i := 0
-	for k := range contextToPolicyMap {
-		allContexts[i] = k
-		i++
-	}
 
 	// File to write the variables and constraints to.
 	f, err := os.Create("z3_constraints.smt")

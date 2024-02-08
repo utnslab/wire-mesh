@@ -9,7 +9,7 @@ import (
 // Check if the policy has overlapping context with the given set of contexts.
 func overlappingContext(policy xp.Policy, contexts [][]string, applGraph map[string][]string) bool {
 	// Enumerate all possible contexts for policy1.
-	allContexts := smt.ExpandPolicyContext(policy.GetContext(), applGraph, true)
+	allContexts := smt.ExpandPolicyContextDeprecated(policy.GetContext(), applGraph, true)
 
 	// Check if any of the contexts is a subset of the other.
 	// TODO: This might be a very inefficient way of doing this.
@@ -41,7 +41,7 @@ func FindConflictingPolicies(policies []xp.Policy, newPolicy xp.Policy, applGrap
 	var conflictingPolicies []xp.Policy
 
 	// Get all contexts for the new policy.
-	newPolicyContexts := smt.ExpandPolicyContext(newPolicy.GetContext(), applGraph, true)
+	newPolicyContexts := smt.ExpandPolicyContextDeprecated(newPolicy.GetContext(), applGraph, true)
 
 	for _, policy := range policies {
 		// A policy could be conflicting if it has overlapping context.
