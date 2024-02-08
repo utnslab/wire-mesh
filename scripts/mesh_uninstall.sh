@@ -72,16 +72,18 @@ kubectl delete all --all -n ingress-nginx
 # Wait for the pods to get deleted
 sleep 1m
 
-if [[ $MESH == "istio" ]]; then
+if [[ $MESH == "istio" || $MESH == "wire"* ]]; then
   # Uninstall Istio
   pushd $TESTBED/istio-1.16.1
   ./bin/istioctl uninstall --purge -y
   popd
-elif [[ $MESH == "linkerd" ]]; then
+fi
+
+if [[ $MESH == "linkerd" || $MESH == "wire"* ]]; then
   # Uninstall Linkerd
   pushd $TESTBED/.linkerd2
   ./bin/linkerd uninstall | kubectl delete -f -
-  popd  
+  popd
 fi
 
 # # Reset kubeadm and reset kubernetes cluster

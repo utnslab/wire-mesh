@@ -40,7 +40,7 @@ if [ $4 -eq 1 ]; then
       popd\""
   done
 
-  sleep 60
+  sleep 10
 fi
 
 echo "Done."

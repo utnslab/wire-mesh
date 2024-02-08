@@ -17,8 +17,9 @@ CONTROL_NODE=$(echo $HOSTS | head -1 | awk '{print $1}')
 # ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "cd \$HOME; ./scripts/reset_pod_network.sh --control"
 # ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "cd \$HOME; sudo kill -9 \$(pgrep -f stats)"
 # ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "sudo rm -rf /sys/fs/bpf/*"
-# ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "cd \$HOME/scripts/bpf; ./all_services.sh --control"
-ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "cd \$HOME/scripts/bpf; ./all_services.sh --control --detach"
+ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "sudo bpftool prog show"
+# ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "cd \$HOME; sudo cp /etc/kubernetes/admin.conf .; sudo chmod 644 admin.conf"
+# scp -rq -o StrictHostKeyChecking=no ${CONTROL_NODE}:~/admin.conf admin.conf >/dev/null 2>&1
 
 # Run command on every node except the control node
 for host in $HOSTS; do
@@ -30,6 +31,9 @@ for host in $HOSTS; do
   # ssh -o StrictHostKeyChecking=no $host "cd \$HOME; sudo kill -9 \$(pgrep -f stats)"
   # ssh -o StrictHostKeyChecking=no $host "sudo rm -rf /sys/fs/bpf/*"
   # ssh -o StrictHostKeyChecking=no $host "cd \$HOME; ./scripts/reset_pod_network.sh"
-  # ssh -o StrictHostKeyChecking=no $host "cd \$HOME/scripts/bpf; ./all_services.sh"
-  ssh -o StrictHostKeyChecking=no $host "cd \$HOME/scripts/bpf; ./all_services.sh --detach"
+  ssh -o StrictHostKeyChecking=no $host "sudo bpftool prog show"
+  # scp -rq -o StrictHostKeyChecking=no admin.conf $host:~/ >/dev/null 2>&1
+
 done
+
+# rm admin.conf

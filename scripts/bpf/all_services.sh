@@ -56,25 +56,25 @@ SERVICES=$($KUBECTL get svc | awk '{print $1}' | tail -n +2)
 
 pushd bpf
 for svc in $SERVICES; do
-    # If svc has consul or jaeger, then skip.
-    if [[ $svc == *"consul"* ]] || [[ $svc == *"jaeger"* ]]; then
-        continue
-    fi
+  # If svc has consul, jaeger, or one of the databases, then skip.
+  if [[ $svc == *"consul"* || $svc == *"jaeger"* || $svc == *"mongo"* || $svc == *"memcached"*  || $svc == *"redis"* || $svc == *"frontend"*  || $svc == *"nginx"* ]]; then
+    continue
+  fi
 
-    if [ $DETACH -eq 1 ]; then
-        if [ $CONTROL -eq 1 ]; then
-            ./detach_bpf_service.sh --service $svc --ops --skmsg --skb --control
-        else
-            ./detach_bpf_service.sh --service $svc --ops --skmsg --skb
-        fi
+  if [ $DETACH -eq 1 ]; then
+    if [ $CONTROL -eq 1 ]; then
+      ./detach_bpf_service.sh --service $svc --ops --skmsg --skb --control
     else
-        # Call the attach_bpf_service.sh script.
-        if [ $CONTROL -eq 1 ]; then
-            ./attach_bpf_service.sh --service $svc --ops --skmsg --skb --control
-        else
-            ./attach_bpf_service.sh --service $svc --ops --skmsg --skb
-        fi
+      ./detach_bpf_service.sh --service $svc --ops --skmsg --skb
     fi
+  else
+    # Call the attach_bpf_service.sh script.
+    if [ $CONTROL -eq 1 ]; then
+      ./attach_bpf_service.sh --service $svc --ops --skmsg --skb --control
+    else
+      ./attach_bpf_service.sh --service $svc --ops --skmsg --skb
+    fi
+  fi
 done
 popd
 

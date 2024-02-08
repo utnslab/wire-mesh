@@ -45,7 +45,7 @@ done
 pushd $TESTBED/scripts
 
 # Check if mesh is not istio and app is boutique or bookinfo
-if [[ $MESH != "istio" && ($APP == "boutique" || $APP == "bookinfo") ]]; then
+if [[ $MESH != "istio" && $APP == "bookinfo" ]]; then
   ./mesh_setup.sh --mesh $MESH --ingress
 else
   ./mesh_setup.sh --mesh $MESH
