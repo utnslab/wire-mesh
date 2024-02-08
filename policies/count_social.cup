@@ -1,0 +1,10 @@
+import "interface.cui";
+policy count_social (
+    act (RPCRequest request)
+    using (Counter counter)
+    context ('compose-post-service.*social-graph-service')
+) {
+    [Ingress]
+    if (IsRequestStatus(request, FAILED))
+        Increment(counter);
+}

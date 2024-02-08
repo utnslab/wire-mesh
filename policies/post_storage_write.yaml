@@ -1,0 +1,70 @@
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: boutique-route
+spec:
+  hosts:
+    - home-timeline-service
+  http:
+    - match:
+      - sourceLabels:
+          svc: compose-post-service
+      - headers:
+          request:
+            add:
+              - key: "fromCPS"
+                value: "true"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: boutique-route
+spec:
+  hosts:
+    - user-timeline-service
+  http:
+    - match:
+      - sourceLabels:
+          svc: compose-post-service
+      - headers:
+          request:
+            add:
+              - key: "fromCPS"
+                value: "true"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: boutique-route
+spec:
+  hosts:
+    - compose-post-service
+  http:
+    - match:
+      - sourceLabels:
+          svc: compose-post-service
+      - headers:
+          request:
+            add:
+              - key: "write"
+                value: "true"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: boutique-route
+spec:
+  hosts:
+    - post-storage-service
+  http:
+    - match:
+      - headers:
+          fromCPS:
+            exact: "true"
+    - header:
+        request:
+          add:
+            - key: "write"
+              value: "true"
+---

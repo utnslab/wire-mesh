@@ -1,0 +1,8 @@
+import "interface.cui";
+policy accessor_reservation (
+    act (RPCRequest request)
+    context ('frontendservice.*catalogservice')
+) {
+    [Egress]
+    Allow(request, 'recommendation', 'mongo-recommendation');
+}

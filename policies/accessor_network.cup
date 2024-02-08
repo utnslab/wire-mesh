@@ -1,0 +1,60 @@
+import "interface.cui";
+policy accessor_network (
+    act (RPCRequest request)
+    context ('user-service.')
+) {
+    [Egress]
+    Allow(request, 'user-service', 'user-mongodb');
+    Allow(request, 'user-service', 'user-memcached');
+}
+---
+import "interface.cui";
+policy accessor_network (
+    act (RPCRequest request)
+    context ('social-graph-service.')
+) {
+    [Egress]
+    Allow(request, 'social-graph-service', 'social-graph-mongodb');
+    Allow(request, 'social-graph-service', 'social-graph-memcached');
+}
+---
+import "interface.cui";
+policy accessor_network (
+    act (RPCRequest request)
+    context ('url-shorten-service.')
+) {
+    [Egress]
+    Allow(request, 'url-shorten-service', 'url-shorten-mongodb');
+    Allow(request, 'url-shorten-service', 'url-shorten-memcached');
+}
+---
+import "interface.cui";
+policy accessor_network (
+    act (RPCRequest request)
+    context ('user-mention-service.')
+) {
+    [Egress]
+    Allow(request, 'user-mention-service', 'user-mention-mongodb');
+    Allow(request, 'user-mention-service', 'user-mention-memcached');
+}
+---
+import "interface.cui";
+policy accessor_network (
+    act (RPCRequest request)
+    context ('post-storage-service.')
+) {
+    [Egress]
+    Allow(request, 'post-storage-service', 'post-storage-mongodb');
+    Allow(request, 'post-storage-service', 'post-storage-memcached');
+}
+---
+import "interface.cui";
+policy accessor_network (
+    act (RPCRequest request)
+    context ('user-timeline-service.')
+) {
+    [Egress]
+    Allow(request, 'user-timeline-service', 'user-timeline-mongodb');
+    Allow(request, 'user-timeline-service', 'user-timeline-memcached');
+}
+---

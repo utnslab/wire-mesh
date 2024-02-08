@@ -1,0 +1,9 @@
+import "interface.cui";
+policy post_storage_write (
+    act (RPCRequest request)
+    context ('compose-post-service.*post-storage-service')
+) {
+    [Ingress]
+    SetHeader(request, 'write', 'true');
+}
+---
