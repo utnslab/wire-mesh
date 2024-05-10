@@ -10,90 +10,90 @@ spec:
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
-  name: "access-user-memc"
+  name: access-user-db
   namespace: default
 spec:
   selector:
     matchLabels:
-      name: user-memcached
+      name: user-service
   action: ALLOW
   rules:
   - to:
     - operation:
-        hosts: ["user-memcached"]
+        hosts: ["user-mongodb", "user-memcached"]
 ---
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
-  name: "access-user-memc"
+  name: access-social-db
   namespace: default
 spec:
   selector:
     matchLabels:
-      name: user-memcached
+      name: social-graph-service
   action: ALLOW
   rules:
   - to:
     - operation:
-        hosts: ["user-memcached"]
+        hosts: ["social-graph-mongodb", "social-graph-memcached"]
 ---
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
-  name: "access-user-memc"
+  name: access-url-db
   namespace: default
 spec:
   selector:
     matchLabels:
-      name: user-memcached
+      name: url-shorten-service
   action: ALLOW
   rules:
   - to:
     - operation:
-        hosts: ["user-memcached"]
+        hosts: ["url-shorten-memcached", "url-shorten-mongodb"]
 ---
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
-  name: "access-user-memc"
+  name: access-user-mention
   namespace: default
 spec:
   selector:
     matchLabels:
-      name: user-memcached
+      name: user-mention-service
   action: ALLOW
   rules:
   - to:
     - operation:
-        hosts: ["user-memcached"]
+        hosts: ["user-mention-mongodb", "user-mention-memcached"]
 ---
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
-  name: "access-user-memc"
+  name: access-post-storage
   namespace: default
 spec:
   selector:
     matchLabels:
-      name: user-memcached
+      name: post-storage-service
   action: ALLOW
   rules:
   - to:
     - operation:
-        hosts: ["user-memcached"]
+        hosts: ["post-storage-mongodb", "post-storage-memcached"]
 ---
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
-  name: "access-user-memc"
+  name: access-user-timeline
   namespace: default
 spec:
   selector:
     matchLabels:
-      name: user-memcached
+      name: user-timeline-service
   action: ALLOW
   rules:
   - to:
     - operation:
-        hosts: ["user-memcached"]
+        hosts: ["user-timeline-mongodb", "user-timeline-memcached"]
 ---

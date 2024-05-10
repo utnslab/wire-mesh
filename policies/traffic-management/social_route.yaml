@@ -1,10 +1,10 @@
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
-  name: boutique-route
+  name: social-route-home
 spec:
   hosts:
-    - cartservice
+    - home-timeline-service
   http:
   - match:
     - headers:
@@ -12,20 +12,20 @@ spec:
           exact: "true"
     - route:
       - destination:
-          host: cartservice
+          host: home-timeline-service
           subset: v2
   - route:
     - destination:
-        host: cartservice
+        host: home-timeline-service
         subset: v1
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
-  name: boutique-route
+  name: social-route-post
 spec:
   hosts:
-    - productcatalogservice
+    - post-storage-service
   http:
   - match:
     - headers:
@@ -33,20 +33,20 @@ spec:
           exact: "true"
     - route:
       - destination:
-          host: productcatalogservice
+          host: post-storage-service
           subset: v2
   - route:
     - destination:
-        host: productcatalogservice
+        host: post-storage-service
         subset: v1
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
-  name: boutique-route
+  name: social-route-user
 spec:
   hosts:
-    - currencyservice
+    - user-timeline-service
   http:
   - match:
     - headers:
@@ -54,43 +54,27 @@ spec:
           exact: "true"
     - route:
       - destination:
-          host: currencyservice
+          host: user-timeline-service
           subset: v2
   - route:
     - destination:
-        host: currencyservice
+        host: user-timeline-service
         subset: v1
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
-  name: boutique-route
+  name: social-route-compose
 spec:
   hosts:
-    - shippingservice
+    - compose=post-service
   http:
-  - match:
-    - headers:
-        fromFE:
-          exact: "true"
-    - route:
-      - destination:
-          host: shippingservice
-          subset: v2
-  - route:
-    - destination:
-        host: shippingservice
-        subset: v1
----
-hosts:
-  - checkoutservice
-http:
-  - match:
-    - sourceLabels:
-        svc: frontendservice
-    - headers:
-        request:
-          add:
-            - key: "fromFE"
-              value: "true"
+    - match:
+      - sourceLabels:
+          svc: nginx-thrift
+      - headers:
+          request:
+            add:
+              - key: "fromFE"
+                value: "true"
 ---

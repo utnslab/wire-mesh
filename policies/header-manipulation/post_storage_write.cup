@@ -6,4 +6,3 @@ policy post_storage_write (
     [Ingress]
     SetHeader(request, 'write', 'true');
 }
----

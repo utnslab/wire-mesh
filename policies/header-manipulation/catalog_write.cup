@@ -1,0 +1,8 @@
+import "interface.cui";
+policy catalog_write (
+    act (RPCRequest request)
+    context ('frontendservice.*productcatalogservice')
+) {
+    [Ingress]
+    SetHeader(request, 'display', 'true');
+}

@@ -1,0 +1,59 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: reservation-route-geo
+spec:
+  hosts:
+    - geo
+  http:
+  - match:
+    - headers:
+        fromFE:
+          exact: "true"
+    - route:
+      - destination:
+          host: geo
+          subset: v2
+  - route:
+    - destination:
+        host: geo
+        subset: v1
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: reservation-route-rate
+spec:
+  hosts:
+    - rate
+  http:
+  - match:
+    - headers:
+        fromFE:
+          exact: "true"
+    - route:
+      - destination:
+          host: rate
+          subset: v2
+  - route:
+    - destination:
+        host: rate
+        subset: v1
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: reservation-route-fe
+spec:
+  hosts:
+    - search
+  http:
+    - match:
+      - sourceLabels:
+          svc: frontendservice
+      - headers:
+          request:
+            add:
+              - key: "fromFE"
+                value: "true"
+---

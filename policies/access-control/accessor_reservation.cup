@@ -52,5 +52,6 @@ policy accessor_reservation (
     context ('user.')
 ) {
     [Egress]
-    Allow(request, 'rate', 'mongo-user');
+    Allow(request, 'user', 'mongo-user');
 }
+---

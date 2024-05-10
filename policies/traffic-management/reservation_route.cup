@@ -1,0 +1,18 @@
+import "interface.cui";
+policy boutique_route (
+    act (RPCRequest request)
+    context ('frontendsearchgeo')
+) {
+    [Egress]
+    RouteToVersion(request, 'geo', 'v2');
+}
+---
+import "interface.cui";
+policy boutique_route (
+    act (RPCRequest request)
+    context ('frontendsearchrate')
+) {
+    [Egress]
+    RouteToVersion(request, 'rate', 'v2');
+}
+---

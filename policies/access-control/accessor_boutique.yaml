@@ -10,15 +10,15 @@ spec:
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
-  name: "access-user-memc"
+  name: "access-cart-redis"
   namespace: default
 spec:
   selector:
     matchLabels:
-      name: user-memcached
+      name: cartservice
   action: ALLOW
   rules:
   - to:
     - operation:
-        hosts: ["user-memcached"]
+        hosts: ["redis-cache"]
 ---
