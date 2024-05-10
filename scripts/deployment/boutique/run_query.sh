@@ -80,7 +80,7 @@ done
 if [[ $INIT -eq 1 ]]; then
   # Init
   pushd $TESTBED/scripts
-  kubectl apply -f deployment/boutique/kubernetes-manifests.yaml
+  kubectl apply -f deployment/boutique/yaml/kubernetes-manifests.yaml
 
   if [[ $MESH == "cilium" ]]; then
     # Add Cilium ingress - delete existing and then re-apply.
