@@ -60,7 +60,7 @@ initial_mem_u1 = {
 initial_mem_u2 = {
     "istio": 8000,
     "hypo": 8000,
-    "wire": 8000,
+    "wire": 8200,
 }
 initial_mem = initial_mem_u1 if UID == 'p1' else initial_mem_u2
 
@@ -177,7 +177,7 @@ def get_stats(type):
 
             # Print how many times the mean is higher compared to wire
             if m != 'wire':
-                print(m, np.mean(stats[appl][m]) / np.mean(stats[appl]['wire']))
+                print(m, 1 - np.mean(stats[appl]['wire']) / np.mean(stats[appl][m]))
 
     return stats
 
@@ -277,7 +277,7 @@ def add_barplot(ax, stats_data, ylabel):
 
 
 # Make a boxplot for CPU usage
-figsize = (10, 3.6) if UID == 'p1' else (10, 3.6)
+figsize = (10, 3) if UID == 'p1' else (10, 3)
 fig = plt.figure(figsize=(figsize[0], figsize[1]))
 
 # Plot CPU usage
@@ -311,6 +311,6 @@ else:
 
 # Save the plot
 plt.tight_layout()
-plt.subplots_adjust(top=0.87, bottom=0.2, left=0.08, right=0.96)
+plt.subplots_adjust(top=0.87, bottom=0.25, left=0.08, right=0.96)
 plt.savefig('cpumem_comp_{0}.png'.format(UID))
 plt.savefig('cpumem_comp_{0}.pdf'.format(UID))

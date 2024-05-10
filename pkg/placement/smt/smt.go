@@ -663,6 +663,7 @@ func RunSolver(services []string, numSidecars int, numPolicies int) (bool, map[s
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		glog.Error("Error running z3 solver: ", err)
+		return false, nil, nil
 	}
 
 	// Parse the output of the solver.

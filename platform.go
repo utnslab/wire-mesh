@@ -82,24 +82,24 @@ func (p *Platform) RegisterDataplane(dataplaneJson string) error {
 		return err
 	}
 
-	// Iterate over the objects in the groups array and get the one which has a CnoInterface.
+	// Iterate over the objects in the groups array and get the one which has a ActInterface.
 	var cnoObjects [][]byte
 	jsonparser.ArrayEach(groupObjects, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-		// Get the CnoInterface from the object.
-		cnoObject, _, _, e := jsonparser.Get(value, "inner", "Specification", "CnoInterface")
+		// Get the ActInterface from the object.
+		cnoObject, _, _, e := jsonparser.Get(value, "inner", "Specification", "ActInterface")
 		if e != nil {
-			glog.Errorf("No CnoInterface in object: %s", value)
+			glog.Errorf("No ActInterface in object: %s", value)
 		}
 		cnoObjects = append(cnoObjects, cnoObject)
 	})
 
-	// Iterate over the CnoInterfaces and get the functions.
+	// Iterate over the ActInterfaces and get the functions.
 	var functions map[string]PolicyFunction
 	for _, cnoObject := range cnoObjects {
-		// Get the functions from the CnoInterface.
+		// Get the functions from the ActInterface.
 		functionsArray, _, _, err := jsonparser.Get(cnoObject, "fields")
 		if err != nil {
-			glog.Errorf("No functions in CnoInterface: %s", cnoObject)
+			glog.Errorf("No functions in ActInterface: %s", cnoObject)
 		}
 
 		// Iterate over the functions array and add functions to the `functions` array.

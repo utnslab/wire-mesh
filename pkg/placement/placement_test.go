@@ -1,7 +1,9 @@
 package placement
 
 import (
+	"encoding/json"
 	"flag"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -10,6 +12,48 @@ import (
 
 	glog "github.com/golang/glog"
 )
+
+func constructGraphAndRun(applGraph map[string][]string) (map[string]int, [][]string) {
+	// Create a dummy list of services.
+	servicesMap := make(map[string]int)
+	for k := range applGraph {
+		servicesMap[k] = 1
+		for _, v := range applGraph[k] {
+			servicesMap[v] = 1
+		}
+	}
+
+	services := make([]string, len(servicesMap))
+	i := 0
+	for k := range servicesMap {
+		services[i] = k
+		i++
+	}
+	print(len(services), services)
+
+	// Create a dummy list of policies.
+	functions_p1 := []xp.PolicyFunction{
+		xp.CreateNewPolicyFunction("set_header", xp.SENDER, []int{0}, true)}
+
+	policies := make([]xp.Policy, 0)
+	for k, arr := range applGraph {
+		for _, v := range arr {
+			// If v contains "mongo", "memcached", or "redis", then continue.
+			// if strings.Contains(v, "mongo") || strings.Contains(v, "memcached") || strings.Contains(v, "redis") {
+			// 	continue
+			// }
+			policies = append(policies, xp.CreatePolicy([]string{k, v}, functions_p1))
+		}
+	}
+
+	// Define sidecar costs array.
+	sidecarCosts := []int{100}
+
+	// Create an empty map for the initial placement.
+	sidecarAssignment := make(map[string]int)
+
+	return GetPlacement(policies, applGraph, services, sidecarAssignment, sidecarCosts)
+}
 
 func TestPlacement(t *testing.T) {
 	flag.Parse()
@@ -58,45 +102,8 @@ func TestSocialNetworkPlacement(t *testing.T) {
 	applGraph["user-mention"] = []string{"user-mention-mongo", "user-mention-memcached"}
 	applGraph["post-storage"] = []string{"post-storage-mongo", "post-storage-redis"}
 
-	// Create a dummy list of services.
-	servicesMap := make(map[string]int)
-	for k := range applGraph {
-		servicesMap[k] = 1
-		for _, v := range applGraph[k] {
-			servicesMap[v] = 1
-		}
-	}
-
-	services := make([]string, len(servicesMap))
-	i := 0
-	for k := range servicesMap {
-		services[i] = k
-		i++
-	}
-	print(len(services), services)
-
-	// Create a dummy list of policies.
-	functions_p1 := []xp.PolicyFunction{
-		xp.CreateNewPolicyFunction("set_header", xp.SENDER, []int{0}, true)}
-
-	policies := make([]xp.Policy, 0)
-	for k, arr := range applGraph {
-		for _, v := range arr {
-			// If v contains "mongo", "memcached", or "redis", then continue.
-			// if strings.Contains(v, "mongo") || strings.Contains(v, "memcached") || strings.Contains(v, "redis") {
-			// 	continue
-			// }
-			policies = append(policies, xp.CreatePolicy([]string{k, v}, functions_p1))
-		}
-	}
-
-	// Define sidecar costs array.
-	sidecarCosts := []int{100}
-
-	// Create an empty map for the initial placement.
-	sidecarAssignment := make(map[string]int)
-
-	GetPlacement(policies, applGraph, services, sidecarAssignment, sidecarCosts)
+	// Run for the given application graph.
+	constructGraphAndRun(applGraph)
 }
 
 func TestHotelReservationPlacement(t *testing.T) {
@@ -113,45 +120,8 @@ func TestHotelReservationPlacement(t *testing.T) {
 	applGraph["geo"] = []string{"geo=mongo"}
 	applGraph["profile"] = []string{"profile-mongo", "profile-memc"}
 
-	// Create a dummy list of services.
-	servicesMap := make(map[string]int)
-	for k := range applGraph {
-		servicesMap[k] = 1
-		for _, v := range applGraph[k] {
-			servicesMap[v] = 1
-		}
-	}
-
-	services := make([]string, len(servicesMap))
-	i := 0
-	for k := range servicesMap {
-		services[i] = k
-		i++
-	}
-	print(len(services), services)
-
-	// Create a dummy list of policies.
-	functions_p1 := []xp.PolicyFunction{
-		xp.CreateNewPolicyFunction("set_header", xp.SENDER_RECEIVER, []int{0}, true)}
-
-	policies := make([]xp.Policy, 0)
-	for k, arr := range applGraph {
-		for _, v := range arr {
-			// If v contains "mongo", "memcached", or "redis", then continue.
-			// if strings.Contains(v, "mongo") || strings.Contains(v, "memc") || strings.Contains(v, "redis") {
-			// 	continue
-			// }
-			policies = append(policies, xp.CreatePolicy([]string{k, v}, functions_p1))
-		}
-	}
-
-	// Define sidecar costs array.
-	sidecarCosts := []int{100}
-
-	// Create an empty map for the initial placement.
-	sidecarAssignment := make(map[string]int)
-
-	GetPlacement(policies, applGraph, services, sidecarAssignment, sidecarCosts)
+	// Run for the given application graph.
+	constructGraphAndRun(applGraph)
 }
 
 var fileName = flag.String("file", "placement_test", "File to read the DAG from")
@@ -162,6 +132,111 @@ var batchSize = flag.Int("batch_size", 4, "Batch size")
 var threads = flag.Int("threads", 4, "Number of threads to use")
 var testSize = flag.String("size", "medium", "Size of the test instance")
 var density = flag.Float64("density", 0.2, "Density of the test instance")
+var traces = flag.String("traces", "traces", "JSON file to read traces from")
+
+func TestProductionTraces(t *testing.T) {
+	flag.Parse()
+
+	// Read the json file at *traces.
+	tracesData, err := os.ReadFile(*traces)
+	if err != nil {
+		glog.Fatal("Error reading traces file: ", err)
+	}
+
+	// Parse the json data.
+	var data interface{}
+	err = json.Unmarshal(tracesData, &data)
+	if err != nil {
+		glog.Fatal("Error parsing traces data: ", err)
+	}
+
+	// Keep track of statistics.
+	removed := make([]float32, 0)
+	removedHotspots := make([]float32, 0)
+
+	errorGraphs := 0
+
+	allData := data.(map[string]interface{})
+	for _, serviceData := range allData {
+		// Make application graph.
+		applGraph := make(map[string][]string)
+		numEdges := make(map[string]int)
+
+		msData := serviceData.(map[string]interface{})
+		for svc, data := range msData {
+			for k, v := range data.(map[string]interface{}) {
+				if k == "num_edges" {
+					numEdges[svc] = int(v.(float64))
+				} else {
+					// Parse v as a list of strings.
+					edges := make([]string, 0)
+					for _, e := range v.([]interface{}) {
+						edges = append(edges, e.(string))
+					}
+					applGraph[svc] = edges
+				}
+			}
+		}
+
+		// Run for the given application graph.
+		sidecars, _ := constructGraphAndRun(applGraph)
+
+		if len(sidecars) == 0 {
+			errorGraphs++
+			continue
+		}
+
+		// Iterate over the sidecars dictionary and find the number of sidecars that are not -1.
+		numSidecars := 0
+		hotspots := 0
+		totalHotspots := 0
+		for svc, v := range sidecars {
+			if v != -1 {
+				numSidecars++
+			}
+
+			if numEdges[svc] > 4 {
+				if v == -1 {
+					hotspots++
+				}
+				totalHotspots++
+			}
+		}
+
+		// Fraction of services that have sidecars.
+		fraction := 1 - (float32(numSidecars) / float32(len(sidecars)))
+		removed = append(removed, fraction)
+		if totalHotspots > 0 {
+			removedHotspots = append(removedHotspots, float32(hotspots)/float32(totalHotspots))
+		}
+
+		// Write removed and removedHotspots to a JSON file.
+		removedData := make(map[string]interface{})
+		removedData["removed"] = removed
+		removedData["removedHotspots"] = removedHotspots
+
+		// Print removed and removedHotspots.
+		glog.Info("Removed: ", removed)
+		glog.Info("Removed hotspots: ", removedHotspots)
+
+		removedDataBytes, err := json.Marshal(removedData)
+		if err != nil {
+			glog.Fatal("Error marshalling removed data: ", err)
+		}
+
+		err = os.WriteFile("removed.json", removedDataBytes, 0644)
+		if err != nil {
+			glog.Fatal("Error writing removed data: ", err)
+		}
+
+		glog.Info("<==========================================>")
+	}
+
+	// Print the statistics.
+	glog.Info("Error graphs: ", errorGraphs)
+	glog.Info("Fraction of sidecars removed: ", removed)
+	glog.Info("Fraction of hotspots removed: ", removedHotspots)
+}
 
 func TestComplete(t *testing.T) {
 	flag.Parse()
