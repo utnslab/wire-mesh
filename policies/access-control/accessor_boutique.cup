@@ -1,9 +1,0 @@
-import "interface.cui";
-policy accessor_boutique (
-    act (RPCRequest request)
-    context ('cartservice.')
-) {
-    [Egress]
-    Allow(request, 'cart', 'redis-cache');
-}
----

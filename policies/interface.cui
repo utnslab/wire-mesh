@@ -1,9 +1,0 @@
-import common.cui;
-
-act RPCRequest{
-    action SetHeader(self, string header_name, string value),
-    action Allow(self, string source, string dest),
-
-    action Deny(self, string source, string dest),
-    action GetHeader(self, string header_name),
-}
