@@ -10,6 +10,7 @@ import (
 
 	xp "xPlane"
 
+	histogram "github.com/HdrHistogram/hdrhistogram-go"
 	glog "github.com/golang/glog"
 )
 
@@ -103,7 +104,11 @@ func TestSocialNetworkPlacement(t *testing.T) {
 	applGraph["post-storage"] = []string{"post-storage-mongo", "post-storage-redis"}
 
 	// Run for the given application graph.
+	start := time.Now()
 	constructGraphAndRun(applGraph)
+	elapsed := time.Since(start)
+
+	glog.Info("Time: ", elapsed.Milliseconds(), " ms")
 }
 
 func TestHotelReservationPlacement(t *testing.T) {
@@ -121,7 +126,29 @@ func TestHotelReservationPlacement(t *testing.T) {
 	applGraph["profile"] = []string{"profile-mongo", "profile-memc"}
 
 	// Run for the given application graph.
+	start := time.Now()
 	constructGraphAndRun(applGraph)
+	elapsed := time.Since(start)
+
+	glog.Info("Time: ", elapsed.Milliseconds(), " ms")
+}
+
+func TestOnlineBoutiquePlacement(t *testing.T) {
+	flag.Parse()
+
+	// Create a dummy application graph.
+	applGraph := make(map[string][]string)
+	applGraph["frontend"] = []string{"ad", "recommendation", "catalog", "cart", "shipping", "checkout", "currency"}
+	applGraph["checkout"] = []string{"catalog", "cart", "shipping", "currency", "payment", "email"}
+	applGraph["cart"] = []string{"redis-cache"}
+	applGraph["recommendation"] = []string{"catalog"}
+
+	// Run for the given application graph.
+	start := time.Now()
+	constructGraphAndRun(applGraph)
+	elapsed := time.Since(start)
+
+	glog.Info("Time: ", elapsed.Milliseconds(), " ms")
 }
 
 var fileName = flag.String("file", "placement_test", "File to read the DAG from")
@@ -156,8 +183,18 @@ func TestProductionTraces(t *testing.T) {
 
 	errorGraphs := 0
 
+	// Measure time and save in a histogram.
+	h := histogram.New(1, 1000000, 3)
+	count := 0
+
+	// Count total invocations and invocations to hotspots.
+	total_invocations := 0
+	hotspot_invocations := 0
+
 	allData := data.(map[string]interface{})
 	for _, serviceData := range allData {
+		count += 1
+
 		// Make application graph.
 		applGraph := make(map[string][]string)
 		numEdges := make(map[string]int)
@@ -167,6 +204,8 @@ func TestProductionTraces(t *testing.T) {
 			for k, v := range data.(map[string]interface{}) {
 				if k == "num_edges" {
 					numEdges[svc] = int(v.(float64))
+				} else if k == "invocations" {
+					total_invocations += int(v.(float64))
 				} else {
 					// Parse v as a list of strings.
 					edges := make([]string, 0)
@@ -179,12 +218,17 @@ func TestProductionTraces(t *testing.T) {
 		}
 
 		// Run for the given application graph.
+		start := time.Now()
 		sidecars, _ := constructGraphAndRun(applGraph)
+		elapsed := time.Since(start)
 
 		if len(sidecars) == 0 {
 			errorGraphs++
 			continue
 		}
+
+		// Record the time in the histogram.
+		h.RecordValue(elapsed.Milliseconds())
 
 		// Iterate over the sidecars dictionary and find the number of sidecars that are not -1.
 		numSidecars := 0
@@ -195,9 +239,10 @@ func TestProductionTraces(t *testing.T) {
 				numSidecars++
 			}
 
-			if numEdges[svc] > 4 {
+			if numEdges[svc] >= 4 {
 				if v == -1 {
 					hotspots++
+					hotspot_invocations += int(msData[svc].(map[string]interface{})["invocations"].(float64))
 				}
 				totalHotspots++
 			}
@@ -216,8 +261,8 @@ func TestProductionTraces(t *testing.T) {
 		removedData["removedHotspots"] = removedHotspots
 
 		// Print removed and removedHotspots.
-		glog.Info("Removed: ", removed)
-		glog.Info("Removed hotspots: ", removedHotspots)
+		// glog.Info("Removed: ", removed)
+		// glog.Info("Removed hotspots: ", removedHotspots)
 
 		removedDataBytes, err := json.Marshal(removedData)
 		if err != nil {
@@ -229,13 +274,54 @@ func TestProductionTraces(t *testing.T) {
 			glog.Fatal("Error writing removed data: ", err)
 		}
 
+		// Print the time.
+		if count%20 == 0 {
+			// Print mean and 95th percentile.
+			glog.Info("Mean, 95th and 99th percentile: ", h.Mean(), h.ValueAtQuantile(95), h.ValueAtQuantile(99))
+			glog.Info("Error graphs: ", errorGraphs)
+
+			// Print the average fraction of sidecars removed.
+			sum := float32(0)
+			for _, r := range removed {
+				sum += r
+			}
+			glog.Info("Average fraction of sidecars removed: ", sum/float32(len(removed)))
+
+			// Print the average fraction of hotspots removed.
+			sum = float32(0)
+			for _, r := range removedHotspots {
+				sum += r
+			}
+			glog.Info("Average fraction of hotspots removed: ", sum/float32(len(removedHotspots)))
+
+			glog.Info("Fraction of invocations for hotspots: ", float32(hotspot_invocations)/float32(total_invocations))
+		}
+
 		glog.Info("<==========================================>")
 	}
 
 	// Print the statistics.
 	glog.Info("Error graphs: ", errorGraphs)
-	glog.Info("Fraction of sidecars removed: ", removed)
-	glog.Info("Fraction of hotspots removed: ", removedHotspots)
+
+	// Print mean and 95th percentile.
+	glog.Info("Mean, 95th and 99th percentile: ", h.Mean(), h.ValueAtQuantile(95), h.ValueAtQuantile(99))
+
+	// Print the average fraction of sidecars removed.
+	sum := float32(0)
+	for _, r := range removed {
+		sum += r
+	}
+	glog.Info("Average fraction of sidecars removed: ", sum/float32(len(removed)))
+
+	// Print the average fraction of hotspots removed.
+	sum = float32(0)
+	for _, r := range removedHotspots {
+		sum += r
+	}
+	glog.Info("Average fraction of hotspots removed: ", sum/float32(len(removedHotspots)))
+
+	// Print the fraction of invocations for hotspots.
+	glog.Info("Fraction of invocations for hotspots: ", float32(hotspot_invocations)/float32(total_invocations))
 }
 
 func TestComplete(t *testing.T) {

@@ -1,6 +1,7 @@
 package smt
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -472,7 +473,7 @@ func OptimizeForTargetDeprecated(policies []xPlane.Policy, applEdges map[string]
 // list declaring whether a service already has a sidecar and a list denoting the cost of adding a sidecar.
 //
 // It generates the z3 constraints and the objective function, which can then be used by a z3 solver.
-func GenerateOptimizationFile(policies []xPlane.Policy, applEdges map[string][]string, services []string, sidecarAssignment map[string]int, sidecarCost []int) {
+func GenerateOptimizationFile(policies []xPlane.Policy, applEdges map[string][]string, services []string, sidecarAssignment map[string]int, sidecarCost []int) error {
 	// Service map is needed to map service names to their index in the z3 variables.
 	svcMap := getSvcMapFromList(services)
 
@@ -480,6 +481,11 @@ func GenerateOptimizationFile(policies []xPlane.Policy, applEdges map[string][]s
 	numPolicies := len(policies)
 	numServices := len(svcMap)
 	numDataplanes := len(sidecarCost)
+
+	// If services more than 500, then z3 will not be able to handle it.
+	if numServices > 500 {
+		return errors.New("more than 500 services not supported")
+	}
 
 	// File to write the variables and constraints to.
 	f, err := os.Create("z3_constraints.smt")
@@ -654,12 +660,14 @@ func GenerateOptimizationFile(policies []xPlane.Policy, applEdges map[string][]s
 
 	// Close the file.
 	f.Close()
+
+	return nil
 }
 
 // Runs the z3 solver on the generated file and returns the output.
 func RunSolver(services []string, numSidecars int, numPolicies int) (bool, map[string]int, [][]string) {
 	// Use the z3 command line tool to run the solver.
-	cmd := exec.Command("z3", "z3_constraints.smt")
+	cmd := exec.Command("z3", "z3_constraints.smt", "-T:60")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		glog.Error("Error running z3 solver: ", err)

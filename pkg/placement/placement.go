@@ -113,7 +113,11 @@ func GetPlacementParallel(policies []xp.Policy, applGraph map[string][]string, s
 // Uses the z3 solver's SMT-LIB to find the optimal placement.
 func GetPlacement(policies []xp.Policy, applGraph map[string][]string, services []string, sidecarAssignments map[string]int, sidecarCosts []int) (map[string]int, [][]string) {
 	// Generate the SMT-LIB file.
-	smt.GenerateOptimizationFile(policies, applGraph, services, sidecarAssignments, sidecarCosts)
+	err := smt.GenerateOptimizationFile(policies, applGraph, services, sidecarAssignments, sidecarCosts)
+	if err != nil {
+		glog.Error("Error generating SMT-LIB file: ", err)
+		return nil, nil
+	}
 
 	// Run the SMT solver and get the optimal placement for the given policies.
 	_, sidecars, impls := smt.RunSolver(services, len(sidecarCosts), len(policies))
