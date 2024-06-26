@@ -86,6 +86,7 @@ $CMD | grep $SERVICE | while read -r POD_INFO; do
 
   # Get the cgroup path for the pod.
   POD_CGROUP="kubepods-burstable-pod${POD_UID}.slice:cri-containerd:${CONTAINER_ID}"
+  echo "Pod cgroup: $POD_CGROUP"
 
   # Check if the POD_CGROUP exists.
   if [ ! -d "/sys/fs/cgroup/unified/$POD_CGROUP" ]; then

@@ -23,6 +23,7 @@ import (
 	"context"
 	"flag"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/HdrHistogram/hdrhistogram-go"
@@ -31,12 +32,8 @@ import (
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 )
 
-func main() {
-	address := flag.String("address", "localhost:50051", "address of the server")
-	defaultName := flag.String("name", "world", "name to greet")
-
-	flag.Parse()
-
+// run is a function to run the client, and upon completion, it will record the latency.
+func run(address *string, defaultName *string, output chan<- *hdrhistogram.Histogram) {
 	// Set up a connection to the server.
 	conn, err := grpc.Dial(*address+":80",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -54,32 +51,68 @@ func main() {
 
 	// Use HdrHistogram to measure the latency.
 	h := hdrhistogram.New(1, 1000000, 3)
-	lastReport := time.Now()
 
 	// Call SayHello repetitively and measure the latency.
 	count := 0
 	for i := 0; i < 100000; i++ {
 		start := time.Now()
-		_, err := c.SayHello(ctx, &pb.HelloRequest{Name: name})
+		r, err := c.SayHello(ctx, &pb.HelloRequest{Name: name})
 		if err != nil {
-			log.Fatalf("could not greet: %v", err)
+			break
 		}
 		elapsed := time.Since(start)
 		count++
 
-		h.RecordValue(elapsed.Nanoseconds())
-
-		if time.Since(lastReport) > time.Second {
-			log.Printf("Latency: avg=%v, p50=%v, p95=%v, p99=%v, p999=%v, p9999=%v, max=%v",
-				time.Duration(h.Mean()), time.Duration(h.ValueAtQuantile(50)),
-				time.Duration(h.ValueAtQuantile(95)), time.Duration(h.ValueAtQuantile(99)),
-				time.Duration(h.ValueAtQuantile(99.9)), time.Duration(h.ValueAtQuantile(99.99)),
-				time.Duration(h.Max()))
-
-			log.Printf("Number of requests: %v", count)
-			count = 0
-
-			lastReport = time.Now()
+		// Check the response.
+		if r.GetMessage() != "Hello "+name {
+			log.Fatalf("unexpected response: %v", r.Message)
 		}
+
+		h.RecordValue(elapsed.Nanoseconds())
 	}
+
+	output <- h
+}
+
+func main() {
+	address := flag.String("address", "localhost:50051", "address of the server")
+	defaultName := flag.String("name", "world", "name to greet")
+	clients := flag.Int("clients", 1, "number of clients")
+
+	flag.Parse()
+
+	// Construct a WaitGroup to wait for all clients to finish.
+	var wg sync.WaitGroup
+
+	// Construct a channel to receive the latency from each client.
+	output := make(chan *hdrhistogram.Histogram, *clients)
+
+	// Run the clients.
+	for i := 0; i < *clients; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			run(address, defaultName, output)
+		}()
+	}
+
+	// Wait for all clients to finish.
+	wg.Wait()
+
+	// Read the latency from each client and merge them.
+	h := hdrhistogram.New(1, 1000000, 3)
+	count := 0
+	for i := 0; i < *clients; i++ {
+		hist := <-output
+		h.Merge(hist)
+		count += int(hist.TotalCount())
+	}
+
+	log.Printf("Latency: avg=%v, p50=%v, p95=%v, p99=%v, p999=%v, p9999=%v, max=%v",
+		time.Duration(h.Mean()), time.Duration(h.ValueAtQuantile(50)),
+		time.Duration(h.ValueAtQuantile(95)), time.Duration(h.ValueAtQuantile(99)),
+		time.Duration(h.ValueAtQuantile(99.9)), time.Duration(h.ValueAtQuantile(99.99)),
+		time.Duration(h.Max()))
+
+	log.Printf("Number of requests: %v", count)
 }
