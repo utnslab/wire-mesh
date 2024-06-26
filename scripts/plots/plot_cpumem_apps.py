@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 if len(sys.argv) < 2:
-    print("Usage: python3 plot_cpumem_comp.py <path> <list of apps>")
+    print("Usage: python3 plot_cpumem_apps.py <path> <list of apps>")
     sys.exit(1)
 
 NODES = 4
@@ -21,21 +21,21 @@ APPS = sys.argv[2:]
 UID = PATH.split('/')[-1]
 LABELS = {
     'istio': 'Istio',
-    'hypo': 'Istio+DG',
-    'devbest': 'Manual Best',
+    'hypo': 'Istio++',
+    'devbest': 'Multiple',
     'wire': 'Wire'
 }
 
-MESH = ["istio", "hypo", "devbest", "wire"] if UID == 'p1' else ["istio", "hypo", "wire"]
+MESH = ["istio", "hypo", "wire"] if UID == 'p1' else ["istio", "hypo", "wire"]
 
 RATES = {
     "istio": {
-        "boutique": 100,
+        "boutique": 50,
         "reservation": 1000,
         "social": 1500
     },
     "hypo": {
-        "boutique": 100,
+        "boutique": 50,
         "reservation": 1000,
         "social": 1500
     },
@@ -45,7 +45,7 @@ RATES = {
         "social": 1500
     },
     "wire": {
-        "boutique": 100,
+        "boutique": 50,
         "reservation": 1000,
         "social": 1500
     }
@@ -54,13 +54,12 @@ RATES = {
 initial_mem_u1 = {
     "istio": 8000,
     "hypo": 8000,
-    "devbest": 10000,
-    "wire": 10000,
+    "wire": 8200,
 }
 initial_mem_u2 = {
     "istio": 8000,
     "hypo": 8000,
-    "wire": 8200,
+    "wire": 8000,
 }
 initial_mem = initial_mem_u1 if UID == 'p1' else initial_mem_u2
 
@@ -227,9 +226,9 @@ def add_boxplot(ax, stats_data, ylabel):
 # Write a function add_barplot(ax, stats_data, ylabel) that adds a bar plot to the axis ax.
 # Similar to the box plot, but with a bar plot.
 def add_barplot(ax, stats_data, ylabel):
-    A = 3 if UID == 'p1' else 2.5
+    A = 2.5
     B = 0.5
-    C = 1.75 if UID == 'p1' else 1.5
+    C = 1.5
 
     # Three box plots for each application. Each box plot has 3 boxes for each service mesh.
     # Color each service mesh differently.
@@ -260,16 +259,17 @@ def add_barplot(ax, stats_data, ylabel):
 
         # Set the xticks
         ax.set_xticks([i * A + C for i in range(len(APPS))])
-        ax.set_xticklabels([a.capitalize() for a in APPS], fontsize=22)
+        ax.set_xticklabels([a.capitalize() for a in APPS], fontsize=24)
 
         if ylabel == 'Memory (GB)':
             ax.set_yticks(np.arange(0, 4, 1) * 1000)
             ax.set_yticklabels([str(int(y/1000)) for y in ax.get_yticks()], fontsize=22)
         else:
-            ax.set_yticklabels([int(y) for y in ax.get_yticks()], fontsize=22)
+            ax.set_yticklabels([int(y) for y in ax.get_yticks()], fontsize=24)
 
-        ax.set_ylabel(ylabel, fontsize=24)
-        ax.set_xlabel('Applications', fontsize=24)
+        # ax.set_ylabel(ylabel, fontsize=24)
+        ax.set_title(ylabel, fontsize=26)
+        ax.set_xlabel('Applications', fontsize=26)
 
         # Set limit [10, 40] for cpu usage and [10500, 11500] for memory usage
         if ylabel == 'CPU Usage (\%)':
@@ -277,7 +277,7 @@ def add_barplot(ax, stats_data, ylabel):
 
 
 # Make a boxplot for CPU usage
-figsize = (10, 3) if UID == 'p1' else (10, 3)
+figsize = (10, 4)
 fig = plt.figure(figsize=(figsize[0], figsize[1]))
 
 # Plot CPU usage
@@ -292,25 +292,16 @@ mem_stats = get_stats('used')
 # add_boxplot(ax, mem_stats, 'Memory (MB)')
 add_barplot(ax, mem_stats, 'Memory (GB)')
 
-if UID == 'p1':
-    fig.legend(handles=[label1, label2, label3, label4],
-            loc='center',
-            ncol=4,
-            frameon=False,
-            bbox_to_anchor=(0.5, 0.93),
-            bbox_transform=fig.transFigure,
-            fontsize=24)
-else:
-    fig.legend(handles=[label1, label2, label4],
-            loc='center',
-            ncol=3,
-            frameon=False,
-            bbox_to_anchor=(0.5, 0.93),
-            bbox_transform=fig.transFigure,
-            fontsize=24)
+fig.legend(handles=[label1, label2, label4],
+        loc='center',
+        ncol=3,
+        frameon=False,
+        bbox_to_anchor=(0.5, 0.93),
+        bbox_transform=fig.transFigure,
+        fontsize=28)
 
 # Save the plot
 plt.tight_layout()
-plt.subplots_adjust(top=0.87, bottom=0.25, left=0.08, right=0.96)
+plt.subplots_adjust(top=0.76, bottom=0.2, left=0.05, right=0.98)
 plt.savefig('cpumem_comp_{0}.png'.format(UID))
 plt.savefig('cpumem_comp_{0}.pdf'.format(UID))
