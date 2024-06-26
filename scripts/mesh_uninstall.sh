@@ -57,8 +57,8 @@ popd
 
 # Remove boutique application
 pushd scripts/deployment/boutique
-kubectl delete -f kubernetes-manifests.yaml
-kubectl delete -f istio-manifests.yaml
+kubectl delete -f yaml/kubernetes-manifests.yaml
+kubectl delete -f yaml/istio-manifests.yaml
 popd
 
 # Remove bookinfo application

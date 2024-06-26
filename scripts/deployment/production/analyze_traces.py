@@ -18,6 +18,7 @@ print(f'Found {len(appls)} services in the traces.')
 
 num_uservices = {}      # Number of unique microservices.
 num_downstream = {}     # Number of downstream microservices.
+total_edges = {}         # Total number of edges in the graph.
 edge_count_map = {}     # Map number of downstream microservices to the number of times such services are called.
 outgoing_edges = []     # List to store the number of outgoing edges.
 leaf_node_fraction = [] # List to store the fraction of leaf nodes.
@@ -33,6 +34,7 @@ for service, uservices in appls.items():
 
     json_data[service] = {}
     leaf_services = 0
+    edges = 0
     for svc, meta in uservices.items():
         num = len(meta['out_edges'])
         if num not in num_downstream:
@@ -55,9 +57,17 @@ for service, uservices in appls.items():
         
         # Store the graph information.
         json_data[service][svc] = {
+            'invocations': meta['count'],
             'num_edges': num_edges,
             'edges': list(meta['out_edges'])
         }
+
+        edges += num
+    
+    if edges not in total_edges:
+        total_edges[edges] = 1
+    else:
+        total_edges[edges] += 1
     
     leaf_node_fraction.append(leaf_services / num_services)
 
@@ -106,6 +116,29 @@ plt.rcParams[
 # plt.ylabel('CDF')
 # plt.title('CDF of the number of outgoing edges')
 # plt.show()
+
+# Get the 50th, 90th, and 99th percentile of the number of unique microservices.
+percentiles = [50, 99, 99.9, 99.99]
+for percentile in percentiles:
+    total_count = sum(num_uservices.values())
+    cdf = 0
+    for key, value in sorted(num_uservices.items(), key=lambda item: item[0]):
+        cdf += value
+        if cdf / total_count >= percentile / 100:
+            print(f'{percentile}th percentile of the number of unique microservices: {key}')
+            break
+
+# Get the 50th, 90th, and 99th percentile of the total number of edges.
+percentiles = [50, 99]
+for percentile in percentiles:
+    total_count = sum(total_edges.values())
+    cdf = 0
+    for key, value in sorted(total_edges.items(), key=lambda item: item[0]):
+        cdf += value
+        if cdf / total_count >= percentile / 100:
+            print(f'{percentile}th percentile of the total number of edges: {key}')
+            break
+
 
 # Plot a CDF of the number of times a service, with a given number of edges, is called.
 edge_count_map = dict(sorted(edge_count_map.items(), key=lambda item: item[0]))

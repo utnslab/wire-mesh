@@ -37,7 +37,7 @@ echo "Resetting on control node ${CONTROL_NODE}"
 if [[ $4 -eq 1 ]]; then
   ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "cd \$HOME; ./scripts/setup_cilium.sh --control > install_docker.log 2>&1"
 else
-  ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "cd \$HOME; ./scripts/install_docker.sh --control > install_docker.log 2>&1"
+  ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "cd \$HOME; ./scripts/install_docker.sh --control --cni > install_docker.log 2>&1"
 fi
 
 # Get the join command

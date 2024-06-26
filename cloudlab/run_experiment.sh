@@ -91,13 +91,14 @@ sleep 3m
 # read -p "Press enter to stop the experiment and get stats ..."
 
 # Get the stats from each of the nodes
-mkdir -p $4/${APPL}-${MESH}-${RATE}-$(date +%d.%m-%H:%M)
-cp scripts/deployment/$APPL/run_query.sh $4/${APPL}-${MESH}-${RATE}-$(date +%d.%m-%H:%M)/
+DIR="$4/${APPL}-${MESH}-${RATE}-$(date +%d.%m-%H:%M)"
+mkdir -p $DIR
+cp scripts/deployment/$APPL/run_query.sh $DIR/
 for ((i = 0; i < ${#HOSTS[@]}; i++)); do
   echo "Getting stats from ${HOSTS[$i]} ..."
-  scp -o StrictHostKeyChecking=no ${HOSTS[$i]}:~/out/stats_${APPL}_${MESH}.pkl $4/${APPL}-${MESH}-${RATE}-$(date +%d.%m-%H:%M)/stats_${APPL}_${MESH}_$i.pkl
+  scp -o StrictHostKeyChecking=no ${HOSTS[$i]}:~/out/stats_${APPL}_${MESH}.pkl $DIR/stats_${APPL}_${MESH}_$i.pkl
 done
 
 # Get time from the client node
 echo "Getting time from ${CLIENT_HOST} ..."
-scp -o StrictHostKeyChecking=no ${CLIENT_HOST}:~/out/time_${APPL}_${RATE}_${MESH}.run $4/${APPL}-${MESH}-${RATE}-$(date +%d.%m-%H:%M)/
+scp -o StrictHostKeyChecking=no ${CLIENT_HOST}:~/out/time_${APPL}_${RATE}_${MESH}.run $DIR/

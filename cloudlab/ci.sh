@@ -30,12 +30,8 @@ if [ $4 -eq 1 ]; then
   for host in $HOSTS; do
     echo "Compiling on $host ..."
     ssh -o StrictHostKeyChecking=no $host "tmux new-session -d -s compile \"
-      pushd \$HOME/bpf-pathprop/xdp-tools &&
-      ./configure &&
-      make libxdp &&
-      popd &&
-
       pushd \$HOME/bpf-pathprop/path-router &&
+      make clean &&
       make &&
       popd\""
   done

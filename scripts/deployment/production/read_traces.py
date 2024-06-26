@@ -22,6 +22,10 @@ print(f'Found {len(onlyfiles)} files in the directory.')
 
 # Read each file.
 for file in onlyfiles:
+    # Skip is the file is gzip.
+    if file.endswith('.gz'):
+        continue
+
     print(f'Processing file: {file}')
     with open(os.path.join(path, file), 'r') as f:
         for line in f:
