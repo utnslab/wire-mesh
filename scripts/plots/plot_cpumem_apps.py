@@ -68,9 +68,9 @@ num_applications = len(APPS)
 # Plot formatting
 plt.rcParams['text.usetex'] = True  #Let TeX do the typsetting
 plt.rcParams['font.size'] = 14
-plt.rcParams['text.latex.preamble'] = [
-    r'\usepackage{sansmath}', r'\sansmath'
-]  #Force sans-serif math mode (for axes labels)
+# plt.rcParams['text.latex.preamble'] = [
+#     r'\usepackage{sansmath}', r'\sansmath'
+# ]  #Force sans-serif math mode (for axes labels)
 plt.rcParams['font.family'] = 'sans-serif'  # ... for regular text
 plt.rcParams[
     'font.sans-serif'] = 'Computer Modern Sans serif'  # Choose a nice font here
@@ -140,7 +140,7 @@ def get_stats(type):
                             os.path.join(dir, 'stats_{0}_{1}_{2}.pkl'.format(appl, mesh, n)),
                             'rb') as f:
                         stats_node = pkl.load(f)
-                        if all_stats is None:
+                        if len(all_stats) == 0:
                             all_stats = stats_node[type]
                         else:
                             all_stats = np.sum(
