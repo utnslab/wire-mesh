@@ -19,6 +19,7 @@ eval_config.json
 
 # Local files
 *.local
+**/deployment/**/archive
 
 # Pycache
 __pycache__/
