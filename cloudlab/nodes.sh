@@ -7,10 +7,10 @@
 
 NUM_NODE=$3
 NODE_PREFIX="node"
-EXP_NAME=$1
-PROJECT_EXT="wisr-PG0"
-DOMAIN="utah.cloudlab.us"
-USER_NAME="dsaxena"
+EXP_NAME=$1 
+PROJECT_EXT=${CLOUDLAB_PROJECT}
+DOMAIN=${CLOUDLAB_CLUSTER}
+USER_NAME=${CLOUDLAB_USERNAME}
 # Some nodes' NICs might constantly fail, set SKIP_NODES to skip those nodes
 # SKIP_NODES="7"
 SKIP_NODES=""

@@ -98,7 +98,7 @@ $CMD | grep $SERVICE | while read -r POD_INFO; do
   fi
 
   # Detach sockops program from the pod's cgroup.
-  pushd $TESTBED/bpf-pathprop/path-router
+  pushd $TESTBED/bpf-pathprop/path-prop
   if [ $SKB -eq 1 ]; then
     echo "Detaching SKB bpf program from $SERVICE ..."
     sudo ./load_sk_skb --cgroup $POD_CGROUP --unload

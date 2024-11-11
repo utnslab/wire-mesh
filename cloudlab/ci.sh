@@ -30,7 +30,7 @@ if [ $4 -eq 1 ]; then
   for host in $HOSTS; do
     echo "Compiling on $host ..."
     ssh -o StrictHostKeyChecking=no $host "tmux new-session -d -s compile \"
-      pushd \$HOME/bpf-pathprop/path-router &&
+      pushd \$HOME/bpf-pathprop/path-prop &&
       make clean &&
       make &&
       popd\""
