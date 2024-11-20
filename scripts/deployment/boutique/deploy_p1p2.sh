@@ -1,7 +1,7 @@
 #!/bin/bash
 # Deploy proxies for Policy Set P2
 # Args:
-#  $1: Scenario (istio/hypothetical/devbest/wire)
+#  $1: Scenario (istio/hypo/devbest/wire)
 
 : "${TESTBED:=$HOME}"
 
@@ -38,7 +38,7 @@ elif [ "$SCENARIO" == "istio" ]; then
   pushd $TESTBED/scripts/deployment/boutique
   ./run_query.sh --mesh istio --init
   popd
-elif [ "$SCENARIO" == "hypothetical" ]; then
+elif [ "$SCENARIO" == "hypo" ]; then
   SERVICES="frontend recommendation checkout cart"
   pushd $TESTBED/scripts/deployment/boutique
   ./partial_istio_init.sh $SERVICES

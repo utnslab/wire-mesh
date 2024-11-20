@@ -99,7 +99,7 @@ elif [[ $MESH == "cilium" ]]; then
                  --set envoyConfig.enabled=true \
                  --set loadBalancer.l7.backend=envoy
   cilium status --wait
-elif [[ $MESH == "wire"* ]]; then
+elif [[ $MESH == "wire" ]] || [[ $MESH == "hypo" ]]; then
   curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.16.1 sh -
   pushd $TESTBED/istio-1.16.1
   ./bin/istioctl install --set profile=default -y

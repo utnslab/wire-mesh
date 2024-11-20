@@ -1,7 +1,7 @@
 #!/bin/bash
 # Deploy proxies for Policy Set P2
 # Args:
-#  $1: Scenario (istio/hypothetical/devbest/wire)
+#  $1: Scenario (istio/hypo/devbest/wire)
 
 : "${TESTBED:=$HOME}"
 
@@ -31,7 +31,7 @@ elif [ "$SCENARIO" == "istio" ]; then
   pushd $TESTBED/scripts/deployment/social
   ./run_query.sh --mesh istio --init
   popd
-elif [ "$SCENARIO" == "hypothetical" ]; then
+elif [ "$SCENARIO" == "hypo" ]; then
   # Deploy Istio proxies at select services.
   SERVICES="nginx-thrift text-service home-timeline-service compose-post-service user-service social-graph-service user-timeline-service url-shorten-service user-mention-service post-storage-service"
   pushd $TESTBED/scripts/deployment/social
