@@ -10,7 +10,7 @@ popd
 
 # SSH and run on every node except the control node
 # Get hostnames from kubectl get nodes
-HOSTS=$(kubectl get nodeskubectl get nodes | grep node | awk '{print $1}')
+HOSTS=$(kubectl get nodes | grep node | awk '{print $1}')
 
 for host in $HOSTS; do
   # Skip the control node

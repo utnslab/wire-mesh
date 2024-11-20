@@ -98,19 +98,19 @@ $CMD | grep $SERVICE | while read -r POD_INFO; do
   fi
 
   # Detach sockops program from the pod's cgroup.
-  pushd $TESTBED/bpf-pathprop/path-prop
+  pushd $TESTBED/bpf-addon/path-prop
   if [ $SKB -eq 1 ]; then
     echo "Detaching SKB bpf program from $SERVICE ..."
     sudo ./load_sk_skb --cgroup $POD_CGROUP --unload
   fi
 
   if [ $SKMSG -eq 1 ]; then
-    echo "Detaching gRPC parser bpf program from $1 ..."
+    echo "Detaching gRPC parser bpf program from $SERVICE ..."
     sudo ./load_grpc_skmsg --cgroup $POD_CGROUP --unload
   fi
 
   if [ $OPS -eq 1 ]; then
-    echo "Detaching sockops bpf program from $1 ..."
+    echo "Detaching sockops bpf program from $SERVICE ..."
     sudo ./load_sockops --cgroup $POD_CGROUP --unload
   fi
   popd

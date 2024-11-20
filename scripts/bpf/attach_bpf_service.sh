@@ -102,7 +102,7 @@ $CMD | grep $SERVICE | while read -r POD_INFO; do
 
   # Attach sockops program to the pod's cgroup.
   echo "Attaching sockops bpf program to $SERVICE ..."
-  pushd $TESTBED/bpf-pathprop/path-prop
+  pushd $TESTBED/bpf-addon/path-prop
   if [ $OPS -eq 1 ]; then
     sudo ./load_sockops --cgroup $POD_CGROUP
   fi

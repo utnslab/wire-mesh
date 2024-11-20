@@ -57,7 +57,7 @@ SERVICES=$($KUBECTL get svc | awk '{print $1}' | tail -n +2)
 pushd bpf
 for svc in $SERVICES; do
   # If svc has consul, jaeger, or one of the databases, then skip.
-  if [[ $svc == *"consul"* || $svc == *"jaeger"* || $svc == *"mongo"* || $svc == *"memcached"*  || $svc == *"redis"*  || $svc == *"nginx"* ]]; then
+  if [[ $svc == *"consul"* || $svc == *"jaeger"* || $svc == *"mongo"* || $svc == *"memcached"*  || $svc == *"redis"*  || $svc == *"nginx"* || $svc == *"frontend"* ]]; then
     continue
   fi
 
