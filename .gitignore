@@ -24,6 +24,3 @@ eval_config.json
 # Pycache
 __pycache__/
 **.pyc
-
-# Results
-appls.json

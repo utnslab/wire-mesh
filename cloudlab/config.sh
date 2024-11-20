@@ -43,34 +43,34 @@ wait
 
 rm -f $TARBALL
 
-# # Before anything, update linux kernel
-# for host in $HOSTS; do
-#   echo "Updating kernel on $host ..."
-#   ssh -o StrictHostKeyChecking=no $host "./scripts/update_kernel.sh 2>&1" &
-# done
-# wait
+# Before anything, update linux kernel
+for host in $HOSTS; do
+  echo "Updating kernel on $host ..."
+  ssh -o StrictHostKeyChecking=no $host "./scripts/update_kernel.sh 2>&1" &
+done
+wait
 
-# # Wait for the nodes to reboot
-# sleep 1m
-# echo "Waiting for nodes to reboot ..."
+# Wait for the nodes to reboot
+sleep 1m
+echo "Waiting for nodes to reboot ..."
 
-# # Check if the nodes are reachable via a SSH command every 1 minute
-# while [ 1 ]; do
-#   FLAG=0
-#   for host in $HOSTS; do
-#     HOSTNAME=$(echo $host | awk -F'@' '{print $2}')
-#     nc -zw 1 $HOSTNAME 22 > /dev/null
-#     OUT=$?
-#     if [ $OUT -eq 1 ] ; then
-#       echo "Waiting for $host to come up ..."
-#       FLAG=1
-#       sleep 1m
-#     fi
-#   done
-#   if [ $FLAG -eq 0 ]; then
-#     break
-#   fi
-# done
+# Check if the nodes are reachable via a SSH command every 1 minute
+while [ 1 ]; do
+  FLAG=0
+  for host in $HOSTS; do
+    HOSTNAME=$(echo $host | awk -F'@' '{print $2}')
+    nc -zw 1 $HOSTNAME 22 > /dev/null
+    OUT=$?
+    if [ $OUT -eq 1 ] ; then
+      echo "Waiting for $host to come up ..."
+      FLAG=1
+      sleep 1m
+    fi
+  done
+  if [ $FLAG -eq 0 ]; then
+    break
+  fi
+done
 
 # Increase space on the nodes
 for host in $HOSTS ; do
