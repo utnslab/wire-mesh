@@ -22,20 +22,21 @@ On your local machine:
     export CLOUDLAB_PROJECT=<cloudlab-project>
     export CLOUDLAB_CLUSTER=<cloudlab-cluster-domain>
    ```
+   `CLOUDLAB_USERNAME` is the username under which you are SSH-ing into the Cloudlab cluster, `CLOUDLAB_PROJECT` is the project under which the Cloudlab cluster is registered (both of these can be found on the Cloudlab experiment page).
    The domain for the cluster is usually like `utah.cloudlab.us` or `wisc.cloudlab.us`, etc.
 
-2. Run the setup script:
+3. Run the setup script:
    ```bash
     ./cloudlab/config.sh <cloudlab-experiment-name> 0 3 1 && ./cloudlab/client_config.sh <cloudlab-experiment-name> 4
    ```
 
-3. Check that the Kubernetes cluster is up and running:
+4. Check that the Kubernetes cluster is up and running:
    ```bash
     kubectl get nodes
    ```
    The output should show the nodes in the cluster in the `Ready` state.
 
-4. Push the necessary code on to the Cloudlab cluster:
+5. Push the necessary code on to the Cloudlab cluster:
    ```bash
     ./cloudlab/ci.sh <cloudlab-experiment-name> 0 3 1
    ```
@@ -71,14 +72,13 @@ The above should save results in the `$HOME/out` directory.
 ### Latency-Throughput and CPU-Memory usage results
 Setup the cluster using instruction [above](#setup-instructions).
 Then, follow the instructions below to get the necessary traces and logs for Figures 9 and 10 in the paper.
-Finally, to plot the final figures, use the plotting scripts described in [this section](#plotting-scripts).
 
 #### End-to-end experiments
 
 Running the end-to-end experiments for a policy, require execution of the policy for the given scenario over several traces, for all benchmark applications.
 This can take a long time (up to two hours) to generate all results - to only test the policy on a single trace, see the instructions in [this section](#single-run).
 
-On your local machine:
+To generate all the necessary results, please repeat the following steps for `mesh`=`istio`,`hypo`, and `wire` and then, to plot the final figures, use the plotting scripts described in [this section](#plotting-scripts).
 
 1. Set up a particular service mesh (on the control node, node0 of the Cloudlab cluster):
     ```bash
@@ -100,11 +100,17 @@ On your local machine:
    ```
    where the mesh is one of `istio`, `hypo` (shown in paper as `Istio++`) or `wire`.
 
+3. Remove the mesh and the running containers (on the control node, node0 of the Cloudlab cluster):
+   ```bash
+   cd scripts
+   ./mesh_uninstall.sh --mesh <mesh>
+   ```
+
 #### Single run
 
-One can simply run a particular mesh (Istio/Istio++/Wire) for a single trace using the following script:
+One can simply run a particular mesh (Istio/Istio++/Wire) for a single trace using the following script (note that for the complete results, one needs to repeat this for all benchmark applications and multiple request rates - this is done in the [end-to-end experiments](#end-to-end-experiments) above.):
 
-1. Setup the application (on control node of the Cloudlab cluster, or node0):
+1. Setup the application (on control node, node0 of the Cloudlab cluster):
    ```bash
    cd scripts/deployment/<app (reservation/social/boutique)>
    ./deploy_p1.sh <mesh>
@@ -115,7 +121,8 @@ One can simply run a particular mesh (Istio/Istio++/Wire) for a single trace usi
    ```bash
    ./cloudlab/run_experiment.sh <cloudlab-experiment-name> <app> <mesh> <results-dir> <request-rate>
    ```
-   where `<app>` is one of `reservation`, `social`, `boutique`, `<mesh>` is one of `istio`, `hypo` (shown in paper as `Istio++`) or `wire`, and `<request-rate>` is the request rate to generate. The script will run the 
+   where `<app>` is one of `reservation`, `social`, `boutique`, `<mesh>` is one of `istio`, `hypo` (shown in paper as `Istio++`) or `wire`, and `<request-rate>` is the request rate to generate.
+   The script will run a workload with `<request-rate>` requests per second and save the observed latencies and CPU/Memory usage in `<results-dir>`.
 
 #### Plotting Scripts
 
