@@ -2,22 +2,20 @@
 # Run all the experiments for a particular service mesh.
 # Arguments:
 # 1: Name of the experiment
-# 2: Start node
-# 3: End node
-# 4: Scenario (istio/hypo/wire)
-# 5: Directory to put the output files
+# 2: Scenario (istio/hypo/wire)
+# 3: Directory to put the output files
 
 # Check arguments
 if [ $# -ne 3 ]; then
-  echo "Usage: <script_name> <experiment_name> <start_node> <end_node> <scenario> <output_dir>"
+  echo "Usage: <script_name> <experiment_name> <scenario> <output_dir>"
   exit 1
 fi
 
 # Set the arguments
-SCENARIO=$4
-OUTPUT_DIR=$5
+SCENARIO=$2
+OUTPUT_DIR=$3
 
-HOSTS=`./cloudlab/nodes.sh $1 $2 $3 --all`
+HOSTS=`./cloudlab/nodes.sh $1 0 4 --all`
 
 # Get the control node (first line of $HOSTS)
 CONTROL_NODE=$(echo $HOSTS | head -1 | awk '{print $1}')
