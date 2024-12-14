@@ -35,7 +35,8 @@ CONTROL_NODE=$(echo $HOSTS | head -1 | awk '{print $1}')
 # Setup control node
 echo "Resetting on control node ${CONTROL_NODE}"
 if [[ $4 -eq 1 ]]; then
-  ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "cd \$HOME; ./scripts/setup_cilium.sh --control > install_docker.log 2>&1"
+  ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "cd \$HOME; ./scripts/install_docker.sh --control > install_docker.log 2>&1"
+  ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "cd \$HOME; ./scripts/setup_cilium.sh --control >> install_docker.log 2>&1"
 else
   ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "cd \$HOME; ./scripts/install_docker.sh --control --cni > install_docker.log 2>&1"
 fi
@@ -43,16 +44,17 @@ fi
 # Get the join command
 scp -rq -o StrictHostKeyChecking=no ${CONTROL_NODE}:~/command.txt command.txt >/dev/null 2>&1
 
+# Get the admin.conf file
+ssh -o StrictHostKeyChecking=no ${CONTROL_NODE} "cd \$HOME; sudo cp /etc/kubernetes/admin.conf .; sudo chmod 644 admin.conf"
+scp -rq -o StrictHostKeyChecking=no ${CONTROL_NODE}:~/admin.conf admin.conf >/dev/null 2>&1
+
 # Setup worker nodes
 for host in $HOSTS; do
   if [[ "$host" != "${CONTROL_NODE}" ]]; then
     echo "Resetting $host ..."
     scp -rq -o StrictHostKeyChecking=no command.txt $host:~/ >/dev/null 2>&1
-    if [[ $4 -eq 1 ]]; then
-      ssh -o StrictHostKeyChecking=no $host "cd \$HOME; sudo ./scripts/setup_cilium.sh > install_docker.log 2>&1" &
-    else
-      ssh -o StrictHostKeyChecking=no $host "cd \$HOME; sudo ./scripts/install_docker.sh > install_docker.log 2>&1" &
-    fi
+    scp -rq -o StrictHostKeyChecking=no admin.conf $host:~/ >/dev/null 2>&1
+    ssh -o StrictHostKeyChecking=no $host "cd \$HOME; sudo ./scripts/install_docker.sh > install_docker.log 2>&1" &
   fi
 done
 wait

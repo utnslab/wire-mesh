@@ -149,8 +149,6 @@ for host in $HOSTS ; do
     docker pull divyanshus/hotelreservation &&
     git clone https://github.com/DivyanshuSaxena/DeathStarBench.git &&
 
-    curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 &&
-    sudo install minikube-linux-amd64 /usr/local/bin/minikube &&
     mkdir -p \$HOME/out &&
     mkdir -p \$HOME/logs\""
 

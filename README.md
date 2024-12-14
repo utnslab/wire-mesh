@@ -11,12 +11,11 @@ cd scripts
 ```
 
 For a Cloudlab cluster, we provide a simple script to set up the environment.
+The setup involves running the scripts from the local machine and then testing the setup on the Cloudlab cluster.
 
 ### Setup for Cloudlab
 
-On your local machine:
-
-1. Set the Cloudlab environment variables for CLI:
+1. On your local machine, set the Cloudlab environment variables for CLI:
    ```bash
     export CLOUDLAB_USERNAME=<cloudlab-username>
     export CLOUDLAB_PROJECT=<cloudlab-project>
@@ -25,23 +24,25 @@ On your local machine:
    `CLOUDLAB_USERNAME` is the username under which you are SSH-ing into the Cloudlab cluster, `CLOUDLAB_PROJECT` is the project under which the Cloudlab cluster is registered (both of these can be found on the Cloudlab experiment page).
    The domain for the cluster is usually like `utah.cloudlab.us` or `wisc.cloudlab.us`, etc.
 
-3. Run the setup script:
+2. On the local machine, start the setup script. This will SSH into the cloudlab nodes using the above environment variables and set up the Kubernetes cluster:
    ```bash
     ./cloudlab/config.sh <cloudlab-experiment-name> 0 3 1 && ./cloudlab/client_config.sh <cloudlab-experiment-name> 4
    ```
 
-4. Check that the Kubernetes cluster is up and running:
+3. On Cloudlab node 0, check that the Kubernetes cluster is up and running:
    ```bash
     kubectl get nodes
    ```
    The output should show the nodes in the cluster in the `Ready` state.
 
-5. Push the necessary code on to the Cloudlab cluster:
+4. Again from the local machine, push the necessary code on to the Cloudlab cluster:
    ```bash
     ./cloudlab/ci.sh <cloudlab-experiment-name> 0 3 1
    ```
 
 ## Running the Wire Mesh
+
+On the Kubernetes control node (for Cloudlab setup using [the above](#setup-for-cloudlab) steps, this should be node0), run:
 
 1. Install a service mesh:
    ```bash
@@ -76,7 +77,8 @@ Then, follow the instructions below to get the necessary traces and logs for Fig
 #### End-to-end experiments
 
 Running the end-to-end experiments for a policy, require execution of the policy for the given scenario over several traces, for all benchmark applications.
-This can take a long time (up to two hours) to generate all results - to only test the policy on a single trace, see the instructions in [this section](#single-run).
+This can take a long time (up to two hours) to generate all results.
+In order to only test the policy on a single trace, see the instructions in [this section](#single-run).
 
 To generate all the necessary results, please repeat the following steps for `mesh`=`istio`,`hypo`, and `wire` and then, to plot the final figures, use the plotting scripts described in [this section](#plotting-scripts).
 
