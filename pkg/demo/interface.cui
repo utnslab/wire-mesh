@@ -1,0 +1,10 @@
+import "common.cui";
+act RPCRequest: Request {
+    action GetHeader(self, string),
+    action SetHeader(self, string, string),
+    action Deny(self),
+    
+    [Egress]
+    action RouteToVersion(self, string, string),
+    action IsRequestStatus(self, string) -> bool,
+}

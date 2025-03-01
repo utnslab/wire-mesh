@@ -1,0 +1,55 @@
+{
+    "nodes": [
+        "frontend",
+        "recommend",
+        "user",
+        "profile",
+        "search",
+        "reserve",
+        "geo",
+        "rate",
+        "recommend-mongo",
+        "reserve-mongo",
+        "reserve-memc",
+        "user-mongo",
+        "rate-mongo",
+        "rate-memc",
+        "geo-mongo",
+        "profile-mongo",
+        "profile-memc"
+    ],
+    "edges": {
+        "frontend": [
+            "recommend",
+            "user",
+            "profile",
+            "search",
+            "reserve"
+        ],
+        "search": [
+            "geo",
+            "rate"
+        ],
+        "recommend": [
+            "recommend-mongo"
+        ],
+        "reserve": [
+            "reserve-mongo",
+            "reserve-memc"
+        ],
+        "user": [
+            "user-mongo"
+        ],
+        "rate": [
+            "rate-mongo",
+            "rate-memc"
+        ],
+        "geo": [
+            "geo-mongo"
+        ],
+        "profile": [
+            "profile-mongo",
+            "profile-memc"
+        ]
+    }
+}

@@ -1,0 +1,7 @@
+policy reservation_write (
+    act (RPCRequest request)
+    context ("frontend->.*->[rate,geo]")
+) {
+    [Ingress]
+    SetHeader(request, "critical", "true");
+}

@@ -28,7 +28,7 @@ func getPolicyImpls(policyContext []string, applEdges map[string][]string, svcMa
 	var penultimateNodes []int
 	var lastNodes []int
 
-	if policyContext[len(policyContext)-1] == "*" {
+	if policyContext[len(policyContext)-1] == ".*" {
 		// There should be a single penultimate node.
 		penultimateSvc := policyContext[len(policyContext)-2]
 		penultimateNodes = append(penultimateNodes, svcMap[penultimateSvc])
