@@ -1,1 +1,17 @@
-{"nodes": ["A", "B"], "edges": {"A": ["B"]}}
+{
+    "nodes": [
+        "frontend",
+        "search",
+        "geo",
+        "rate"
+    ],
+    "edges": {
+        "frontend": [
+            "search"
+        ],
+        "search": [
+            "geo",
+            "rate"
+        ]
+    }
+}

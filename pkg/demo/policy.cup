@@ -1,7 +1,15 @@
 policy reservation_write (
     act (RPCRequest request)
-    context ("frontend->.*->[rate,geo]")
+    context ("frontend->.*->rate")
 ) {
     [Ingress]
     SetHeader(request, "critical", "true");
+}
+---
+policy reservation_write (
+    act (RPCRequest request)
+    context ("search->.*")
+) {
+    [Ingress]
+    InjectDelay(request, 100);
 }
